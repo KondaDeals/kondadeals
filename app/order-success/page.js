@@ -1,11 +1,12 @@
 'use client'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { CheckCircle, Package, Truck, Home } from 'lucide-react'
 
-export default function OrderSuccessPage() {
+function OrderSuccessContent() {
   const searchParams = useSearchParams()
   const orderNumber = searchParams.get('order') || 'KD00000000'
 
@@ -79,5 +80,12 @@ export default function OrderSuccessPage() {
       </div>
       <Footer />
     </div>
+  )
+}
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}>
+      <OrderSuccessContent />
+    </Suspense>
   )
 }
