@@ -16,11 +16,12 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0, totalProducts: 0 })
 
-  const [productForm, setProductForm] = useState({
-    name: '', slug: '', description: '', mrp: '',
-    sale_price: '', category_id: '', stock: '',
-    is_featured: false, is_trending: false, is_new_arrival: false, is_active: true
-  })
+ const [productForm, setProductForm] = useState({
+  name: '', slug: '', description: '', mrp: '',
+  sale_price: '', category_id: '', stock: '',
+  image_url: '',
+  is_featured: false, is_trending: false, is_new_arrival: false, is_active: true
+})
 
   useEffect(() => {
     fetchAll()
@@ -67,18 +68,19 @@ export default function AdminPage() {
     }
     try {
       const data = {
-        name: productForm.name,
-        slug: productForm.slug || generateSlug(productForm.name),
-        description: productForm.description,
-        mrp: parseFloat(productForm.mrp),
-        sale_price: parseFloat(productForm.sale_price),
-        category_id: productForm.category_id,
-        stock: parseInt(productForm.stock) || 0,
-        is_featured: productForm.is_featured,
-        is_trending: productForm.is_trending,
-        is_new_arrival: productForm.is_new_arrival,
-        is_active: productForm.is_active,
-      }
+  name: productForm.name,
+  slug: productForm.slug || generateSlug(productForm.name),
+  description: productForm.description,
+  mrp: parseFloat(productForm.mrp),
+  sale_price: parseFloat(productForm.sale_price),
+  category_id: productForm.category_id,
+  stock: parseInt(productForm.stock) || 0,
+  images: productForm.image_url ? [productForm.image_url] : [],
+  is_featured: productForm.is_featured,
+  is_trending: productForm.is_trending,
+  is_new_arrival: productForm.is_new_arrival,
+  is_active: productForm.is_active,
+}
       if (editingProduct) {
         const { error } = await supabase.from('products').update(data).eq('id', editingProduct.id)
         if (error) throw error
@@ -90,7 +92,7 @@ export default function AdminPage() {
       }
       setShowAddProduct(false)
       setEditingProduct(null)
-      setProductForm({ name: '', slug: '', description: '', mrp: '', sale_price: '', category_id: '', stock: '', is_featured: false, is_trending: false, is_new_arrival: false, is_active: true })
+      setProductForm({ name: '', slug: '', description: '', mrp: '', sale_price: '', category_id: '', stock: '', image_url: '', is_featured: false, is_trending: false, is_new_arrival: false, is_active: true })
       fetchAll()
     } catch (err) {
       toast.error(err.message || 'Failed to save product')
@@ -100,18 +102,19 @@ export default function AdminPage() {
   const handleEditProduct = (product) => {
     setEditingProduct(product)
     setProductForm({
-      name: product.name,
-      slug: product.slug,
-      description: product.description || '',
-      mrp: product.mrp,
-      sale_price: product.sale_price,
-      category_id: product.category_id,
-      stock: product.stock,
-      is_featured: product.is_featured,
-      is_trending: product.is_trending,
-      is_new_arrival: product.is_new_arrival,
-      is_active: product.is_active,
-    })
+  name: product.name,
+  slug: product.slug,
+  description: product.description || '',
+  mrp: product.mrp,
+  sale_price: product.sale_price,
+  category_id: product.category_id,
+  stock: product.stock,
+  image_url: product.images?.[0] || '',
+  is_featured: product.is_featured,
+  is_trending: product.is_trending,
+  is_new_arrival: product.is_new_arrival,
+  is_active: product.is_active,
+})
     setShowAddProduct(true)
   }
 
@@ -253,7 +256,7 @@ export default function AdminPage() {
                 <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#1a1a1a' }}>
                   Products ({products.length})
                 </h2>
-                <button onClick={() => { setEditingProduct(null); setProductForm({ name: '', slug: '', description: '', mrp: '', sale_price: '', category_id: '', stock: '', is_featured: false, is_trending: false, is_new_arrival: false, is_active: true }); setShowAddProduct(true) }}
+                <button onClick={() => { setEditingProduct(null); setProductForm({ name: '', slug: '', description: '', mrp: '', sale_price: '', category_id: '', stock: '', image_url: '', is_featured: false, is_trending: false, is_new_arrival: false, is_active: true }); setShowAddProduct(true) }}
                   style={{ background: '#e53935', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Plus size={16} /> Add Product
                 </button>
@@ -424,6 +427,26 @@ export default function AdminPage() {
                   placeholder="product-url-slug" style={{ ...inputStyle, background: '#f8f8f8' }}
                 />
               </div>
+              <div>
+  <label style={{ fontSize: '13px', fontWeight: '600', color: '#555', display: 'block', marginBottom: '6px' }}>Product Image URL</label>
+  <input name="image_url" value={productForm.image_url || ''} onChange={handleProductFormChange}
+    placeholder="https://example.com/image.jpg" style={inputStyle}
+    onFocus={e => e.target.style.borderColor = '#e53935'}
+    onBlur={e => e.target.style.borderColor = '#e0e0e0'}
+  />
+  {productForm.image_url && (
+    <div style={{ marginTop: '8px', border: '1px solid #f0f0f0', borderRadius: '8px', padding: '8px', background: '#f8f8f8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <img src={productForm.image_url} alt="preview"
+        style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '6px' }}
+        onError={e => e.target.style.display = 'none'}
+      />
+      <span style={{ fontSize: '12px', color: '#2e7d32', fontWeight: '600' }}>✅ Image preview</span>
+    </div>
+  )}
+  <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+    Paste any image URL. Use Google Images → right click → "Copy image address"
+  </p>
+</div>
               <div>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#555', display: 'block', marginBottom: '6px' }}>Description</label>
                 <textarea name="description" value={productForm.description} onChange={handleProductFormChange}
