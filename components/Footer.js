@@ -74,9 +74,9 @@ export default function Footer() {
           <div>
             <h4 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '16px', color: 'white' }}>CONTACT US</h4>
             <div style={{ color: '#999', fontSize: '13px', lineHeight: '2' }}>
-              <div>📧 support@kondadeals.com</div>
-              <div>📞 +91 98765 43210</div>
-              <div>⏰ Mon-Sat: 9AM - 6PM</div>
+              <div>📧 kondadeals@gmail.com</div>
+              <div>📞 +91 78160 10619</div>
+              <div>⏰ Mon-Sat: 9AM - 9PM</div>
             </div>
             <div style={{ marginTop: '20px' }}>
               <div style={{ color: '#999', fontSize: '12px', marginBottom: '8px' }}>We Accept</div>
