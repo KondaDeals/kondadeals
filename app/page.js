@@ -294,13 +294,13 @@ export default function HomePage() {
           </Link>
         </div>
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
             {[...Array(8)].map((_, i) => (
               <div key={i} style={{ background: 'white', borderRadius: '12px', height: '320px', animation: 'pulse 1.5s infinite' }} />
             ))}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
             {featuredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -321,7 +321,7 @@ export default function HomePage() {
             View All <ChevronRight size={16} />
           </Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
           {trendingProducts.map(product => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -339,7 +339,7 @@ export default function HomePage() {
               View All <ChevronRight size={16} />
             </Link>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
             {newArrivals.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
