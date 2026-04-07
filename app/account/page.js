@@ -47,18 +47,31 @@ export default function AccountPage() {
     router.push('/')
   }
 
-  const handleSaveProfile = async () => {
-    const { error } = await supabase.from('profiles')
-      .update({ full_name: profileForm.full_name, phone: profileForm.phone })
-      .eq('id', user.id)
+ const handleSaveProfile = async () => {
+  try {
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) { toast.error('Not logged in'); return }
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: currentUser.id,
+        full_name: profileForm.full_name,
+        phone: profileForm.phone
+      }, { onConflict: 'id' })
+
     if (!error) {
       toast.success('Profile updated!')
       setEditProfile(false)
       fetchData()
     } else {
-      toast.error('Failed to update profile')
+      console.error('Profile update error:', error)
+      toast.error('Failed to update: ' + error.message)
     }
+  } catch (err) {
+    toast.error('Error: ' + err.message)
   }
+}
 
   const getStatusColor = (status) => {
     const colors = {

@@ -32,27 +32,38 @@ useEffect(() => {
 const checkAdmin = async () => {
   try {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
-    
+
     if (!currentUser) {
       router.push('/login?redirect=/admin')
       return
     }
 
+    // Use service role check via email list (hardcoded admin emails)
+    const adminEmails = ['iamkondakirankumarreddy@gmail.com']
+    
+    if (adminEmails.includes(currentUser.email)) {
+      setIsAdmin(true)
+      setAuthChecked(true)
+      fetchAll()
+      return
+    }
+
+    // Also check database
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_admin')
       .eq('id', currentUser.id)
       .single()
 
-    if (!profile?.is_admin) {
-      toast.error('Admin access required')
-      router.push('/')
+    if (profile?.is_admin) {
+      setIsAdmin(true)
+      setAuthChecked(true)
+      fetchAll()
       return
     }
 
-    setIsAdmin(true)
-    setAuthChecked(true)
-    fetchAll()
+    toast.error('Admin access required')
+    router.push('/')
   } catch (err) {
     console.error(err)
     router.push('/login?redirect=/admin')
