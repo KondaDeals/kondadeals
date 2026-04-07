@@ -9,7 +9,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <img src="/logo.png" alt="KondaDeals" style={{ height: '50px', width: 'auto', objectFit: 'contain', marginBottom: '16px', filter: 'brightness(0) invert(1)' }} />
-            <p style={{ fontSize: '13px', lineHeight: '1.8' }}>
+            <p style={{ color: '#999', fontSize: '13px', lineHeight: '1.8' }}>
               India's favourite destination for viral gadgets and trending products at unbeatable prices.
             </p>
             <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
