@@ -30,24 +30,39 @@ useEffect(() => {
 }, [])
 
 const checkAdmin = async () => {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    router.push('/login?redirect=/admin')
-    return
-  }
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', session.user.id)
-    .single()
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.user) {
+      router.push('/login?redirect=/admin')
+      return
+    }
 
-  if (!profile?.is_admin) {
-    router.push('/')
-    return
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('is_admin, full_name')
+      .eq('id', session.user.id)
+      .single()
+
+    if (error || !profile) {
+      console.log('Profile error:', error)
+      router.push('/')
+      return
+    }
+
+    if (!profile.is_admin) {
+      alert('Access denied. Admin only.')
+      router.push('/')
+      return
+    }
+
+    setIsAdmin(true)
+    setAuthChecked(true)
+    fetchAll()
+  } catch (err) {
+    console.error('Admin check error:', err)
+    router.push('/login?redirect=/admin')
   }
-  setIsAdmin(true)
-  setAuthChecked(true)
-  fetchAll()
 }
 
   const fetchAll = async () => {
