@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ShoppingCart, Heart, Star, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useStore from '@/lib/store'
+import DiscountTimer from '@/components/DiscountTimer'
 
 export default function ProductCard({ product }) {
   const { addToCart, toggleWishlist, isInWishlist } = useStore()
@@ -166,6 +167,9 @@ export default function ProductCard({ product }) {
           </h3>
 
           {/* Rating */}
+          {product.discount_ends_at && new Date(product.discount_ends_at) > new Date() && (
+  <DiscountTimer endsAt={product.discount_ends_at} compact={true} />
+)}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {[1,2,3,4,5].map(star => (
               <Star key={star} size={12} color="#ff6f00" fill={star <= 4 ? '#ff6f00' : 'none'} />

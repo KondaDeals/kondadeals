@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 import ProductCard from '@/components/ProductCard'
 import useStore from '@/lib/store'
 import toast from 'react-hot-toast'
+import DiscountTimer from '@/components/DiscountTimer'
 import { ShoppingCart, Heart, Star, Truck, Shield, RefreshCw, Zap, Plus, Minus } from 'lucide-react'
 
 export default function ProductPage() {
@@ -168,6 +169,7 @@ export default function ProductPage() {
             </div>
 
             {/* Price */}
+            <DiscountTimer endsAt={product.discount_ends_at} />
             <div style={{ background: '#f8f8f8', borderRadius: '12px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '32px', fontWeight: '900', color: '#e53935' }}>
