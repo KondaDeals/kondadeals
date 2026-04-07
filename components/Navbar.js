@@ -74,12 +74,13 @@ export default function Navbar() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px' }}>
 
             {/* Logo */}
-            <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                <span style={{ fontSize: '20px', fontWeight: '900', color: '#e53935', letterSpacing: '-0.5px' }}>KONDA</span>
-                <span style={{ fontSize: '10px', fontWeight: '700', color: '#ff6f00', letterSpacing: '2px' }}>DEALS</span>
-              </div>
-            </Link>
+          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+  <img
+    src="/logo.png"
+    alt="KondaDeals"
+    style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
+  />
+</Link>
 
             {/* Desktop Search */}
             <form onSubmit={handleSearch} className="nav-search" style={{ flex: 1, display: 'flex', maxWidth: '560px' }}>

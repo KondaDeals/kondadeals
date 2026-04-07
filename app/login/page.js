@@ -72,8 +72,7 @@ function LoginForm() {
       <div style={{ background: 'white', padding: '16px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
           <div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#e53935', lineHeight: 1 }}>KONDA</div>
-            <div style={{ fontSize: '10px', fontWeight: '700', color: '#ff6f00', letterSpacing: '2px' }}>DEALS</div>
+            <img src="/logo.png" alt="KondaDeals" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
           </div>
         </Link>
         <Link href="/" style={{ textDecoration: 'none', color: '#666', fontSize: '14px' }}>← Back to Home</Link>
@@ -82,8 +81,7 @@ function LoginForm() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
         <div style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.08)', border: '1px solid #f0f0f0' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ fontSize: '32px', fontWeight: '900', color: '#e53935' }}>KONDA</div>
-            <div style={{ fontSize: '12px', fontWeight: '700', color: '#ff6f00', letterSpacing: '3px' }}>DEALS</div>
+           <img src="/logo.png" alt="KondaDeals" style={{ height: '48px', width: 'auto', objectFit: 'contain' }} />
             <p style={{ color: '#999', fontSize: '14px', marginTop: '8px' }}>
               {mode === 'login' ? 'Welcome back! Sign in to continue' : 'Create your account today'}
             </p>

@@ -8,8 +8,7 @@ export default function Footer() {
           
           {/* Brand */}
           <div>
-            <div style={{ fontSize: '28px', fontWeight: '900', color: '#e53935' }}>KONDA</div>
-            <div style={{ fontSize: '12px', fontWeight: '700', color: '#ff6f00', letterSpacing: '3px', marginBottom: '16px' }}>DEALS</div>
+            <img src="/logo.png" alt="KondaDeals" style={{ height: '50px', width: 'auto', objectFit: 'contain', marginBottom: '16px', filter: 'brightness(0) invert(1)' }} />
             <p style={{ color: '#999', fontSize: '13px', lineHeight: '1.8' }}>
               India's favourite destination for viral gadgets and trending products at unbeatable prices.
             </p>
@@ -103,7 +102,7 @@ export default function Footer() {
       <div style={{ borderTop: '1px solid #333', padding: '16px 20px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <p style={{ color: '#666', fontSize: '12px' }}>
-            © 2025 KondaDeals. All rights reserved.
+            © 2026 KondaDeals. All rights reserved.
           </p>
           <div style={{ display: 'flex', gap: '16px' }}>
             {['Privacy Policy', 'Terms of Service', 'Refund Policy'].map(item => (

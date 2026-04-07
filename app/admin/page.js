@@ -8,6 +8,8 @@ import { Package, ShoppingBag, Users, Tag, Plus, Edit, Trash2, X, Save, BarChart
 export default function AdminPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [products, setProducts] = useState([])
   const [orders, setOrders] = useState([])
   const [categories, setCategories] = useState([])
@@ -23,9 +25,30 @@ export default function AdminPage() {
   is_featured: false, is_trending: false, is_new_arrival: false, is_active: true
 })
 
-  useEffect(() => {
-    fetchAll()
-  }, [])
+useEffect(() => {
+  checkAdmin()
+}, [])
+
+const checkAdmin = async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    router.push('/login?redirect=/admin')
+    return
+  }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', session.user.id)
+    .single()
+
+  if (!profile?.is_admin) {
+    router.push('/')
+    return
+  }
+  setIsAdmin(true)
+  setAuthChecked(true)
+  fetchAll()
+}
 
   const fetchAll = async () => {
     setLoading(true)
@@ -152,6 +175,17 @@ export default function AdminPage() {
     width: '100%', padding: '10px 12px', border: '1.5px solid #e0e0e0',
     borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box'
   }
+ 
+  if (!authChecked) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '32px', marginBottom: '16px' }}>🔐</div>
+        <div style={{ fontSize: '16px', color: '#666' }}>Checking admin access...</div>
+      </div>
+    </div>
+  )
+}
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
