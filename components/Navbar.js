@@ -103,12 +103,19 @@ export default function Navbar() {
                   <span style={{ fontSize: '11px', color: '#555' }}>Wishlist</span>
                 </button>
               </Link>
-              <Link href={user ? '/account' : '/login'} style={{ textDecoration: 'none' }}>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                  <User size={22} color="#555" />
-                  <span style={{ fontSize: '11px', color: '#555' }}>{user ? 'Account' : 'Login'}</span>
-                </button>
-              </Link>
+             <Link href={user ? '/account' : '/login'} style={{ textDecoration: 'none' }}>
+  <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+    <User size={22} color="#555" />
+    <span style={{ fontSize: '11px', color: '#555' }}>{user ? 'Account' : 'Login'}</span>
+  </button>
+</Link>
+{user && (
+  <Link href="/admin" style={{ textDecoration: 'none' }}>
+    <button style={{ background: 'none', border: '1.5px solid #e53935', cursor: 'pointer', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <span style={{ fontSize: '11px', color: '#e53935', fontWeight: '700' }}>⚙️ Admin</span>
+    </button>
+  </Link>
+)}
               <Link href="/cart" style={{ textDecoration: 'none' }}>
                 <button style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
                   <ShoppingCart size={20} color="white" />

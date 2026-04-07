@@ -24,22 +24,38 @@ function LoginForm() {
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value })
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    if (!form.email || !form.password) { toast.error('Please fill all fields'); return }
-    setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password
-    })
-    if (error) {
-      toast.error(error.message)
-    } else {
-      setUser(data.user)
-      toast.success('Welcome back! 🎉')
-      router.push(redirect)
-    }
+  e.preventDefault()
+  if (!form.email || !form.password) { toast.error('Please fill all fields'); return }
+  setLoading(true)
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: form.email,
+    password: form.password
+  })
+  if (error) {
+    toast.error(error.message)
     setLoading(false)
+    return
   }
+  
+  setUser(data.user)
+  toast.success('Welcome back! 🎉')
+  
+  // Check if admin and redirect accordingly
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', data.user.id)
+    .single()
+  
+  if (profile?.is_admin && redirect === '/admin') {
+    router.push('/admin')
+  } else if (profile?.is_admin) {
+    router.push(redirect === '/' ? '/' : redirect)
+  } else {
+    router.push(redirect)
+  }
+  setLoading(false)
+}
 
   const handleSignup = async (e) => {
     e.preventDefault()
