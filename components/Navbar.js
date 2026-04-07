@@ -15,16 +15,27 @@ export default function Navbar() {
   const { cart, user, setUser } = useStore()
   const router = useRouter()
 
-  useEffect(() => {
-    setMounted(true)
-    const handleScroll = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', handleScroll)
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user || null)
-    })
-    fetchCategories()
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+useEffect(() => {
+  setMounted(true)
+  const handleScroll = () => setScrolled(window.scrollY > 10)
+  window.addEventListener('scroll', handleScroll)
+
+  // Get initial session
+  supabase.auth.getSession().then(({ data }) => {
+    setUser(data.session?.user || null)
+  })
+
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user || null)
+  })
+
+  fetchCategories()
+  return () => {
+    window.removeEventListener('scroll', handleScroll)
+    subscription.unsubscribe()
+  }
+}, [])
 
   const cartCount = mounted ? cart.reduce((t, i) => t + i.quantity, 0) : 0
 
@@ -110,11 +121,11 @@ export default function Navbar() {
   </button>
 </Link>
 {user && (
-  <Link href="/admin" style={{ textDecoration: 'none' }}>
-    <button style={{ background: 'none', border: '1.5px solid #e53935', cursor: 'pointer', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <span style={{ fontSize: '11px', color: '#e53935', fontWeight: '700' }}>⚙️ Admin</span>
-    </button>
-  </Link>
+  <button
+    onClick={() => router.push('/admin')}
+    style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+    <span style={{ fontSize: '12px', color: 'white', fontWeight: '700' }}>⚙️ Admin</span>
+  </button>
 )}
               <Link href="/cart" style={{ textDecoration: 'none' }}>
                 <button style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>

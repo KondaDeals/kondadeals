@@ -31,40 +31,21 @@ useEffect(() => {
 
 const checkAdmin = async () => {
   try {
-    // Wait a moment for session to be ready
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session?.user) {
+    if (!currentUser) {
       router.push('/login?redirect=/admin')
       return
     }
 
-    // Directly query with the user's id
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('is_admin')
-      .eq('id', session.user.id)
+      .eq('id', currentUser.id)
       .single()
 
-    if (profileError) {
-      console.error('Profile fetch error:', profileError)
-      // Try again once more
-      const { data: profile2 } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', session.user.id)
-        .single()
-      
-      if (!profile2?.is_admin) {
-        router.push('/')
-        return
-      }
-    }
-
     if (!profile?.is_admin) {
-      alert('You do not have admin access.')
+      toast.error('Admin access required')
       router.push('/')
       return
     }
@@ -73,7 +54,7 @@ const checkAdmin = async () => {
     setAuthChecked(true)
     fetchAll()
   } catch (err) {
-    console.error('Admin check failed:', err)
+    console.error(err)
     router.push('/login?redirect=/admin')
   }
 }
