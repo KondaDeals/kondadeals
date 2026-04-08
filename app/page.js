@@ -14,6 +14,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentBanner, setCurrentBanner] = useState(0)
+const [heroBanners, setHeroBanners] = useState([])
 
   const banners = [
     {
@@ -57,27 +58,33 @@ export default function HomePage() {
   useEffect(() => {
     fetchData()
     const interval = setInterval(() => {
-      setCurrentBanner(prev => (prev + 1) % banners.length)
+      setCurrentBanner(prev => (prev + 1) % displayBanners.length)
     }, 4000)
     return () => clearInterval(interval)
   }, [])
 
   const fetchData = async () => {
     setLoading(true)
-    const [featured, trending, newArr, cats] = await Promise.all([
-      supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
-      supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
-      supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
-      supabase.from('categories').select('*').order('sort_order'),
-    ])
-    if (featured.data) setFeaturedProducts(featured.data)
-    if (trending.data) setTrendingProducts(trending.data)
-    if (newArr.data) setNewArrivals(newArr.data)
-    if (cats.data) setCategories(cats.data)
-    setLoading(false)
-  }
+    const [featured, trending, newArr, cats, bannerRes] = await Promise.all([
+  supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
+  supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
+  supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
+  supabase.from('categories').select('*').order('sort_order'),
+  supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order'),
+])
+if (featured.data) setFeaturedProducts(featured.data)
+if (trending.data) setTrendingProducts(trending.data)
+if (newArr.data) setNewArrivals(newArr.data)
+if (cats.data) setCategories(cats.data)
+if (bannerRes.data && bannerRes.data.length > 0) setHeroBanners(bannerRes.data)
+setLoading(false)
 
-  const banner = banners[currentBanner]
+  const displayBanners = heroBanners.length > 0 ? heroBanners : [
+  { title:'Viral Gadgets', subtitle:'Under ₹299', description:'Trending products at unbeatable prices', badge_text:'HOT DEALS', cta_text:'Shop Now', cta_link:'/collections/viral-gadgets', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', emoji:'⚡', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935' },
+  { title:'New Arrivals', subtitle:'Just Landed', description:'Fresh products everyone is buying', badge_text:'NEW', cta_text:'Explore Now', cta_link:'/collections/new-arrivals', bg_gradient:'linear-gradient(135deg, #1a237e 0%, #283593 100%)', emoji:'🆕', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#1a237e' },
+  { title:'Home Decor', subtitle:'Up to 70% OFF', description:'Beautiful decor for every home', badge_text:'SALE', cta_text:'Shop Now', cta_link:'/collections/home-decor', bg_gradient:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)', emoji:'🏠', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#2e7d32' },
+]
+const banner = displayBanners[currentBanner % displayBanners.length]
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
@@ -85,7 +92,7 @@ export default function HomePage() {
 
       {/* HERO BANNER */}
       <div style={{
-        background: banner.bg,
+        background: banner.bg_gradient,
         padding: '48px 20px',
         transition: 'background 0.8s ease',
         position: 'relative',
@@ -111,8 +118,8 @@ export default function HomePage() {
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
               <Link href={banner.link}>
                 <button style={{
-                  background: 'white',
-                  color: '#e53935',
+  background: banner.button_color || 'white',
+  color: banner.button_text_color || '#e53935',
                   border: 'none',
                   padding: '12px 28px',
                   borderRadius: '8px',
@@ -149,7 +156,7 @@ export default function HomePage() {
 
         {/* Banner dots */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
-          {banners.map((_, i) => (
+          {displayBanners.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentBanner(i)}
@@ -389,4 +396,4 @@ export default function HomePage() {
       <Footer />
     </div>
   )
-}
+}}
