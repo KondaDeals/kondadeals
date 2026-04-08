@@ -108,6 +108,14 @@ useEffect(() => {
 
             {/* Desktop Actions */}
             <div className="nav-desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+              <Link href="/track" style={{ textDecoration: 'none' }}>
+  <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7"/>
+    </svg>
+    <span style={{ fontSize: '11px', color: '#555' }}>Track</span>
+  </button>
+</Link>
               <Link href="/wishlist" style={{ textDecoration: 'none' }}>
                 <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                   <Heart size={22} color="#555" />
@@ -199,6 +207,7 @@ useEffect(() => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
             {[
               { href: '/', label: '🏠 Home' },
+              { href: '/track', label: '📦 Track Order' },
               { href: '/collections/all', label: '🛍️ All Products' },
               { href: '/collections/viral-gadgets', label: '⚡ Viral Gadgets' },
               { href: '/collections/home-decor', label: '🏠 Home Decor' },
