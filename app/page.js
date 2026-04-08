@@ -14,37 +14,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentBanner, setCurrentBanner] = useState(0)
-const [heroBanners, setHeroBanners] = useState([])
-
-  const banners = [
-    {
-      title: 'Viral Gadgets',
-      subtitle: 'Under ₹299',
-      desc: 'Trending products at unbeatable prices',
-      bg: 'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)',
-      emoji: '⚡',
-      link: '/collections/viral-gadgets',
-      tag: 'HOT DEALS'
-    },
-    {
-      title: 'New Arrivals',
-      subtitle: 'Just Landed',
-      desc: 'Fresh products everyone is buying',
-      bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)',
-      emoji: '🆕',
-      link: '/collections/new-arrivals',
-      tag: 'NEW'
-    },
-    {
-      title: 'Home Decor',
-      subtitle: 'Up to 70% OFF',
-      desc: 'Beautiful decor for every home',
-      bg: 'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)',
-      emoji: '🏠',
-      link: '/collections/home-decor',
-      tag: 'SALE'
-    },
-  ]
+  const [heroBanners, setHeroBanners] = useState([])
 
   const categoryIcons = {
     'viral-gadgets': '⚡',
@@ -55,6 +25,14 @@ const [heroBanners, setHeroBanners] = useState([])
     'beauty-care': '💄',
   }
 
+  // ✅ FIX 1: displayBanners moved to component scope (was inside fetchData before)
+  const displayBanners = heroBanners.length > 0 ? heroBanners : [
+    { title: 'Viral Gadgets', subtitle: 'Under ₹299', description: 'Trending products at unbeatable prices', badge_text: 'HOT DEALS', cta_text: 'Shop Now', cta_link: '/collections/viral-gadgets', bg_gradient: 'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', emoji: '⚡', text_color: '#ffffff', button_color: '#ffffff', button_text_color: '#e53935' },
+    { title: 'New Arrivals', subtitle: 'Just Landed', description: 'Fresh products everyone is buying', badge_text: 'NEW', cta_text: 'Explore Now', cta_link: '/collections/new-arrivals', bg_gradient: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', emoji: '🆕', text_color: '#ffffff', button_color: '#ffffff', button_text_color: '#1a237e' },
+    { title: 'Home Decor', subtitle: 'Up to 70% OFF', description: 'Beautiful decor for every home', badge_text: 'SALE', cta_text: 'Shop Now', cta_link: '/collections/home-decor', bg_gradient: 'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)', emoji: '🏠', text_color: '#ffffff', button_color: '#ffffff', button_text_color: '#2e7d32' },
+  ]
+
+  // ✅ FIX 1 (continued): displayBanners is now accessible here in useEffect
   useEffect(() => {
     fetchData()
     const interval = setInterval(() => {
@@ -63,28 +41,26 @@ const [heroBanners, setHeroBanners] = useState([])
     return () => clearInterval(interval)
   }, [])
 
+  // ✅ FIX 2: fetchData is now properly closed with its own closing brace
   const fetchData = async () => {
     setLoading(true)
     const [featured, trending, newArr, cats, bannerRes] = await Promise.all([
-  supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
-  supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
-  supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
-  supabase.from('categories').select('*').order('sort_order'),
-  supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order'),
-])
-if (featured.data) setFeaturedProducts(featured.data)
-if (trending.data) setTrendingProducts(trending.data)
-if (newArr.data) setNewArrivals(newArr.data)
-if (cats.data) setCategories(cats.data)
-if (bannerRes.data && bannerRes.data.length > 0) setHeroBanners(bannerRes.data)
-setLoading(false)
+      supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
+      supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
+      supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
+      supabase.from('categories').select('*').order('sort_order'),
+      supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order'),
+    ])
+    if (featured.data) setFeaturedProducts(featured.data)
+    if (trending.data) setTrendingProducts(trending.data)
+    if (newArr.data) setNewArrivals(newArr.data)
+    if (cats.data) setCategories(cats.data)
+    if (bannerRes.data && bannerRes.data.length > 0) setHeroBanners(bannerRes.data)
+    setLoading(false)
+  } // ✅ FIX 2: fetchData properly closed here
 
-  const displayBanners = heroBanners.length > 0 ? heroBanners : [
-  { title:'Viral Gadgets', subtitle:'Under ₹299', description:'Trending products at unbeatable prices', badge_text:'HOT DEALS', cta_text:'Shop Now', cta_link:'/collections/viral-gadgets', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', emoji:'⚡', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935' },
-  { title:'New Arrivals', subtitle:'Just Landed', description:'Fresh products everyone is buying', badge_text:'NEW', cta_text:'Explore Now', cta_link:'/collections/new-arrivals', bg_gradient:'linear-gradient(135deg, #1a237e 0%, #283593 100%)', emoji:'🆕', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#1a237e' },
-  { title:'Home Decor', subtitle:'Up to 70% OFF', description:'Beautiful decor for every home', badge_text:'SALE', cta_text:'Shop Now', cta_link:'/collections/home-decor', bg_gradient:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)', emoji:'🏠', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#2e7d32' },
-]
-const banner = displayBanners[currentBanner % displayBanners.length]
+  // banner derived at component level (was also inside fetchData before)
+  const banner = displayBanners[currentBanner % displayBanners.length]
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
@@ -108,18 +84,19 @@ const banner = displayBanners[currentBanner % displayBanners.length]
               fontWeight: '700',
               letterSpacing: '1px'
             }}>
-              {banner.tag}
+              {/* ✅ FIX 3: banner.tag → banner.badge_text */}
+              {banner.badge_text}
             </span>
             <h1 style={{ fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: '900', marginTop: '12px', lineHeight: '1.1' }}>
               {banner.title}<br />
               <span style={{ color: 'rgba(255,255,255,0.85)' }}>{banner.subtitle}</span>
             </h1>
-            <p style={{ fontSize: '16px', marginTop: '12px', opacity: 0.9 }}>{banner.desc}</p>
+            <p style={{ fontSize: '16px', marginTop: '12px', opacity: 0.9 }}>{banner.description}</p>
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
-              <Link href={banner.link}>
+              <Link href={banner.cta_link}>
                 <button style={{
-  background: banner.button_color || 'white',
-  color: banner.button_text_color || '#e53935',
+                  background: banner.button_color || 'white',
+                  color: banner.button_text_color || '#e53935',
                   border: 'none',
                   padding: '12px 28px',
                   borderRadius: '8px',
@@ -130,7 +107,7 @@ const banner = displayBanners[currentBanner % displayBanners.length]
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  Shop Now <ChevronRight size={18} />
+                  {banner.cta_text} <ChevronRight size={18} />
                 </button>
               </Link>
               <Link href="/collections/all">
@@ -149,7 +126,7 @@ const banner = displayBanners[currentBanner % displayBanners.length]
               </Link>
             </div>
           </div>
-          <div style={{ fontSize: '120px', flexShrink: 0, display: 'window.innerWidth > 600 ? "block" : "none"' }}>
+          <div style={{ fontSize: '120px', flexShrink: 0 }}>
             {banner.emoji}
           </div>
         </div>
@@ -335,7 +312,7 @@ const banner = displayBanners[currentBanner % displayBanners.length]
         </div>
       </div>
 
-      {/* NEW ARRIVALS BANNER ROW */}
+      {/* NEW ARRIVALS */}
       {newArrivals.length > 0 && (
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 20px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -396,4 +373,4 @@ const banner = displayBanners[currentBanner % displayBanners.length]
       <Footer />
     </div>
   )
-}}
+}
