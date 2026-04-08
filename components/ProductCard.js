@@ -167,8 +167,14 @@ export default function ProductCard({ product }) {
           </h3>
 
           {/* Rating */}
-          {product.discount_ends_at && new Date(product.discount_ends_at) > new Date() && (
-  <DiscountTimer endsAt={product.discount_ends_at} compact={true} />
+         {product.discount_ends_at && new Date(product.discount_ends_at) > new Date() && (
+  <div style={{ marginBottom: '4px' }}>
+    <div style={{ fontSize: '10px', color: '#e53935', fontWeight: '700', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#e53935" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      LIMITED DEAL — ENDS IN:
+    </div>
+    <DiscountTimer endsAt={product.discount_ends_at} compact={true} />
+  </div>
 )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {[1,2,3,4,5].map(star => (
