@@ -40,7 +40,7 @@ const [allReviews, setAllReviews] = useState([])
 
   const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', return_policy:'7_days', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
   const [productForm, setProductForm] = useState(emptyProduct)
-  const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', is_active:true })
+ const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
   const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
 
   useEffect(() => { checkAdmin() }, [])
@@ -122,42 +122,102 @@ if (rv.data) setAllReviews(rv.data)
   }
 
   const updateOrderStatus = async () => {
-    if (!selectedOrder) return
-    const { new_status, new_tracking, new_courier, id } = selectedOrder
-    const updates = { status: new_status, status_updated_at: new Date().toISOString() }
-    if (new_tracking) { updates.tracking_number = new_tracking; updates.courier_name = new_courier }
+  if (!selectedOrder) return
+  const { new_status, new_tracking, new_courier, id } = selectedOrder
+  const updates = {
+    status: new_status,
+    status_updated_at: new Date().toISOString()
+  }
+  if (new_tracking) {
+    updates.tracking_number = new_tracking
+    updates.courier_name = new_courier
+  }
 
-    const { error } = await supabase.from('orders').update(updates).eq('id', id)
-    if (error) { toast.error(error.message); return }
+  const { error } = await supabase.from('orders').update(updates).eq('id', id)
+  if (error) { toast.error(error.message); return }
 
-    // Add to history
-    await supabase.from('order_status_history').insert({
-      order_id: id, status: new_status,
-      tracking_number: new_tracking || null,
-      remarks: new_tracking ? `Shipped via ${new_courier || 'courier'}. Tracking: ${new_tracking}` : `Status updated to ${new_status}`
+  // Add to history
+  await supabase.from('order_status_history').insert({
+    order_id: id,
+    status: new_status,
+    tracking_number: new_tracking || null,
+    remarks: new_tracking
+      ? `Shipped via ${new_courier || 'courier'}. Tracking: ${new_tracking}`
+      : `Status updated to ${new_status}`
+  })
+
+  // Send notification
+  try {
+    const notifyType = new_status === 'shipped' ? 'order_shipped'
+      : new_status === 'delivered' ? 'order_delivered'
+      : 'order_placed'
+
+    await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: notifyType,
+        order: {
+          ...selectedOrder,
+          tracking_number: new_tracking,
+          courier_name: new_courier
+        },
+        phone: selectedOrder.phone,
+        email: selectedOrder.user_email || '',
+      })
     })
 
-    toast.success('Order updated!')
-    setShowOrderModal(false)
-    fetchAll()
-
-    // Send notification (if credentials set)
-    if (new_status === 'shipped' && new_tracking) {
-      toast.success('📱 Customer notified via SMS/Email')
+    if (new_status === 'shipped') {
+      toast.success(`✅ Updated! Customer notified via SMS & Email`)
     } else if (new_status === 'delivered') {
-      toast.success('📱 Delivery confirmation sent to customer')
+      toast.success(`✅ Delivered! Customer notified`)
+    } else {
+      toast.success('Order status updated!')
     }
+  } catch (err) {
+    toast.success('Status updated! (Notification pending setup)')
   }
+
+  setShowOrderModal(false)
+  fetchAll()
+}
 
   // ===== CATEGORY FUNCTIONS =====
   const saveCategory = async () => {
-    if (!categoryForm.name) { toast.error('Enter name'); return }
-    const data = { ...categoryForm, slug: categoryForm.slug || slugify(categoryForm.name) }
-    const { error } = editingCategory ? await supabase.from('categories').update(data).eq('id', editingCategory.id) : await supabase.from('categories').insert(data)
-    if (error) { toast.error(error.message); return }
-    toast.success('Saved!')
-    setShowCategoryModal(false); setEditingCategory(null); setCategoryForm({ name:'', slug:'', description:'', is_active:true }); fetchAll()
+  if (!categoryForm.name) { toast.error('Enter name'); return }
+  const data = {
+    name: categoryForm.name,
+    slug: categoryForm.slug || slugify(categoryForm.name),
+    description: categoryForm.description,
+    image_url: categoryForm.image_url || null,
   }
+  // Only include is_active if column exists
+  try {
+    data.is_active = categoryForm.is_active
+  } catch(e) {}
+
+  const { error } = editingCategory
+    ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
+    : await supabase.from('categories').insert(data)
+
+  if (error) {
+    // If is_active column error, retry without it
+    if (error.message.includes('is_active')) {
+      delete data.is_active
+      const { error: error2 } = editingCategory
+        ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
+        : await supabase.from('categories').insert(data)
+      if (error2) { toast.error(error2.message); return }
+    } else {
+      toast.error(error.message); return
+    }
+  }
+  toast.success('Saved!')
+  setShowCategoryModal(false)
+  setEditingCategory(null)
+  setCategoryForm({ name:'', slug:'', description:'', image_url:'', is_active:true })
+  fetchAll()
+}
 
   // ===== BANNER FUNCTIONS =====
   const saveBanner = async () => {
@@ -422,7 +482,7 @@ if (rv.data) setAllReviews(rv.data)
                     <div style={{ fontSize:'12px', color:'#999', marginBottom:'8px' }}>/{cat.slug}</div>
                     {cat.description && <p style={{ fontSize:'12px', color:'#666', marginBottom:'12px' }}>{cat.description}</p>}
                     <div style={{ display:'flex', gap:'8px' }}>
-                      <button onClick={() => { setEditingCategory(cat); setCategoryForm({ name:cat.name, slug:cat.slug, description:cat.description||'', is_active:cat.is_active!==false }); setShowCategoryModal(true) }}
+                      <button onClick={() => { setEditingCategory(cat); setCategoryForm({ name:cat.name, slug:cat.slug, description:cat.description||'', image_url:cat.image_url||'', is_active:cat.is_active!==false }); setShowCategoryModal(true) }}
                         style={{ flex:1, background:'#e3f2fd', color:'#1565c0', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer' }}>✏️ Edit</button>
                       <button onClick={async () => { await supabase.from('categories').update({ is_active: cat.is_active===false }).eq('id', cat.id); fetchAll() }}
                         style={{ flex:1, background: cat.is_active!==false ? '#fff3e0' : '#e8f5e9', color: cat.is_active!==false ? '#e65100' : '#2e7d32', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer' }}>
@@ -978,6 +1038,33 @@ if (rv.data) setAllReviews(rv.data)
                 <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>Description</label>
                 <textarea value={categoryForm.description} onChange={e => setCategoryForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inp, resize:'vertical' }} />
               </div>
+              <div>
+  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>Category Image URL</label>
+  <input
+    value={categoryForm.image_url || ''}
+    onChange={e => setCategoryForm(f => ({ ...f, image_url: e.target.value }))}
+    placeholder="https://example.com/image.jpg"
+    style={inp}
+    onFocus={e => e.target.style.borderColor='#e53935'}
+    onBlur={e => e.target.style.borderColor='#e0e0e0'}
+  />
+  {categoryForm.image_url && (
+    <div style={{ marginTop:'8px', display:'flex', alignItems:'center', gap:'10px', background:'#f8f8f8', padding:'8px', borderRadius:'8px' }}>
+      <img
+        src={categoryForm.image_url}
+        alt="preview"
+        style={{ width:'50px', height:'50px', objectFit:'cover', borderRadius:'6px' }}
+        onError={e => e.target.style.display='none'}
+      />
+      <span style={{ fontSize:'12px', color:'#2e7d32', fontWeight:'600' }}>✅ Image preview</span>
+      <button
+        onClick={() => setCategoryForm(f => ({ ...f, image_url: '' }))}
+        style={{ background:'none', border:'none', color:'#e53935', cursor:'pointer', fontSize:'12px', marginLeft:'auto' }}>
+        ✕ Remove
+      </button>
+    </div>
+  )}
+</div>
               <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', padding:'10px', background:'#f8f8f8', borderRadius:'8px' }}>
                 <input type="checkbox" checked={categoryForm.is_active} onChange={e => setCategoryForm(f => ({ ...f, is_active: e.target.checked }))} style={{ accentColor:'#e53935', width:'16px', height:'16px' }} />
                 <span style={{ fontSize:'13px', fontWeight:'600' }}>✅ Active (visible)</span>

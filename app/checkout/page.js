@@ -23,6 +23,33 @@ export default function CheckoutPage() {
   const shipping = subtotal >= 499 ? 0 : 49
   const total = subtotal + shipping
 
+// Auto-fill saved address
+useEffect(() => {
+  if (user) loadSavedAddress()
+}, [user])
+
+const loadSavedAddress = async () => {
+  const { data } = await supabase
+    .from('addresses')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('is_default', true)
+    .single()
+
+  if (data) {
+    setAddress({
+      full_name: data.full_name || '',
+      phone: data.phone || '',
+      address_line1: data.address_line1 || '',
+      address_line2: data.address_line2 || '',
+      city: data.city || '',
+      state: data.state || '',
+      pincode: data.pincode || ''
+    })
+    toast.success('📍 Saved address loaded!')
+  }
+}
+
   useEffect(() => {
     if (!user) {
       toast.error('Please login to checkout')
@@ -54,58 +81,89 @@ export default function CheckoutPage() {
     return 'KD' + Date.now().toString().slice(-8).toUpperCase()
   }
 
-  const placeOrder = async () => {
-    if (!validateAddress()) return
-    setLoading(true)
-    try {
-      const orderNumber = generateOrderNumber()
-      const { data: order, error } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
+ const placeOrder = async () => {
+  if (!validateAddress()) return
+  setLoading(true)
+  try {
+    const orderNumber = generateOrderNumber()
+
+    // Save address to user profile
+    if (user) {
+      const existingAddr = await supabase
+        .from('addresses')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('pincode', address.pincode)
+        .eq('address_line1', address.address_line1)
+        .single()
+
+      if (!existingAddr.data) {
+        await supabase.from('addresses').insert({
           user_id: user.id,
           full_name: address.full_name,
           phone: address.phone,
           address_line1: address.address_line1,
-          address_line2: address.address_line2,
+          address_line2: address.address_line2 || '',
           city: address.city,
           state: address.state,
           pincode: address.pincode,
-          subtotal: subtotal,
-          shipping_amount: shipping,
-          final_amount: total,
-          payment_method: paymentMethod,
-          payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
-          status: 'confirmed'
+          is_default: true
         })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Insert order items
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        product_name: item.name,
-        product_image: item.images?.[0] || null,
-        quantity: item.quantity,
-        mrp: item.mrp,
-        sale_price: item.sale_price
-      }))
-
-      await supabase.from('order_items').insert(orderItems)
-
-      clearCart()
-      toast.success('Order placed successfully! 🎉')
-      router.push(`/order-success?order=${orderNumber}`)
-
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to place order. Please try again.')
+      }
     }
-    setLoading(false)
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        user_id: user.id,
+        full_name: address.full_name,
+        phone: address.phone,
+        address_line1: address.address_line1,
+        address_line2: address.address_line2,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        subtotal: subtotal,
+        shipping_amount: shipping,
+        final_amount: total,
+        payment_method: paymentMethod,
+        payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
+        status: 'confirmed'
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Insert order items
+    const orderItems = cart.map(item => ({
+      order_id: order.id,
+      product_id: item.id,
+      product_name: item.name,
+      product_image: item.images?.[0] || null,
+      quantity: item.quantity,
+      mrp: item.mrp,
+      sale_price: item.sale_price
+    }))
+    await supabase.from('order_items').insert(orderItems)
+
+    // Add to status history
+    await supabase.from('order_status_history').insert({
+      order_id: order.id,
+      status: 'confirmed',
+      remarks: 'Order placed successfully'
+    })
+
+    clearCart()
+    toast.success('Order placed successfully! 🎉')
+    router.push(`/order-success?order=${orderNumber}`)
+  } catch (err) {
+    console.error(err)
+    toast.error('Failed to place order. Please try again.')
   }
+  setLoading(false)
+}
 
   const indianStates = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',

@@ -46,9 +46,9 @@ export default function HomePage() {
   const fetchData = async () => {
     setLoading(true)
     const [featured, trending, newArr, cats, bannerRes, trustRes] = await Promise.all([
-      supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
-      supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
-      supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
+      supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+supabase.from('products').select('*, categories(name)').eq('is_active', true).order('created_at', { ascending: false }).limit(8),
       supabase.from('categories').select('*').order('sort_order'),
       supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order'),
 supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_order'),

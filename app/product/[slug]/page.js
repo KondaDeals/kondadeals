@@ -334,25 +334,50 @@ export default function ProductPage() {
               <span style={{ fontSize: '13px', color: '#999' }}>Total: <strong style={{ color: '#e53935' }}>₹{formatINR(totalPrice)}</strong></span>
             </div>
 
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={() => { addToCart(product, quantity); toast.success('Added to cart!') }} disabled={product.stock === 0}
-                style={{ flex: 1, minWidth: '140px', background: 'white', color: '#e53935', border: '2px solid #e53935', padding: '14px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#fff5f5' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'white' }}>
-                <ShoppingCart size={18} /> Add to Cart
-              </button>
-              <button onClick={() => { addToCart(product, quantity); router.push('/cart') }} disabled={product.stock === 0}
-                style={{ flex: 1, minWidth: '140px', background: '#e53935', color: 'white', border: 'none', padding: '14px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#c62828' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#e53935' }}>
-                <Zap size={18} /> Buy Now
-              </button>
-              <button onClick={() => { toggleWishlist(product); toast.success(inWishlist ? 'Removed from wishlist' : 'Added to wishlist!') }}
-                style={{ background: inWishlist ? '#fff5f5' : 'white', border: `2px solid ${inWishlist ? '#e53935' : '#e0e0e0'}`, padding: '14px 16px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                <Heart size={20} color={inWishlist ? '#e53935' : '#999'} fill={inWishlist ? '#e53935' : 'none'} />
-              </button>
-            </div>
+           {/* Buttons */}
+<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+  <button
+    onClick={() => { addToCart(product, quantity); toast.success('Added to cart!') }}
+    disabled={product.stock === 0}
+    style={{
+      flex: '1 1 120px', minWidth: '0',
+      background: 'white', color: '#e53935',
+      border: '2px solid #e53935', padding: '14px 10px',
+      borderRadius: '10px', fontSize: '14px', fontWeight: '700',
+      cursor: 'pointer', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', gap: '6px', transition: 'all 0.2s'
+    }}
+    onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
+    onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+    <ShoppingCart size={16} /> Add to Cart
+  </button>
+  <button
+    onClick={() => { addToCart(product, quantity); router.push('/cart') }}
+    disabled={product.stock === 0}
+    style={{
+      flex: '1 1 120px', minWidth: '0',
+      background: '#e53935', color: 'white',
+      border: 'none', padding: '14px 10px',
+      borderRadius: '10px', fontSize: '14px', fontWeight: '700',
+      cursor: 'pointer', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', gap: '6px', transition: 'all 0.2s'
+    }}
+    onMouseEnter={e => e.currentTarget.style.background = '#c62828'}
+    onMouseLeave={e => e.currentTarget.style.background = '#e53935'}>
+    <Zap size={16} /> Buy Now
+  </button>
+  <button
+    onClick={() => { toggleWishlist(product); toast.success(inWishlist ? 'Removed' : 'Added to wishlist!') }}
+    style={{
+      flexShrink: 0, width: '52px',
+      background: inWishlist ? '#fff5f5' : 'white',
+      border: `2px solid ${inWishlist ? '#e53935' : '#e0e0e0'}`,
+      padding: '14px', borderRadius: '10px',
+      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+    <Heart size={18} color={inWishlist ? '#e53935' : '#999'} fill={inWishlist ? '#e53935' : 'none'} />
+  </button>
+</div>
 
             {/* Trust Badges */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
