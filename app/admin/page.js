@@ -80,6 +80,7 @@ if (sl.data) setSocialLinks(sl.data)
 if (hb.data) setHeroBanners(hb.data)
 if (ts.data) setTrustStrips(ts.data)
 if (rv.data) setAllReviews(rv.data)
+}
 
   const slugify = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -1109,5 +1110,4 @@ if (rv.data) setAllReviews(rv.data)
       )}
     </div>
   )
-}
 }
