@@ -15,6 +15,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [currentBanner, setCurrentBanner] = useState(0)
   const [heroBanners, setHeroBanners] = useState([])
+  const [trustStripData, setTrustStripData] = useState([])
 
   const categoryIcons = {
     'viral-gadgets': '⚡',
@@ -44,18 +45,20 @@ export default function HomePage() {
   // ✅ FIX 2: fetchData is now properly closed with its own closing brace
   const fetchData = async () => {
     setLoading(true)
-    const [featured, trending, newArr, cats, bannerRes] = await Promise.all([
+    const [featured, trending, newArr, cats, bannerRes, trustRes] = await Promise.all([
       supabase.from('products').select('*, categories(name)').eq('is_featured', true).eq('is_active', true).limit(8),
       supabase.from('products').select('*, categories(name)').eq('is_trending', true).eq('is_active', true).limit(8),
       supabase.from('products').select('*, categories(name)').eq('is_new_arrival', true).eq('is_active', true).limit(4),
       supabase.from('categories').select('*').order('sort_order'),
       supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order'),
+supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_order'),
     ])
     if (featured.data) setFeaturedProducts(featured.data)
     if (trending.data) setTrendingProducts(trending.data)
     if (newArr.data) setNewArrivals(newArr.data)
     if (cats.data) setCategories(cats.data)
     if (bannerRes.data && bannerRes.data.length > 0) setHeroBanners(bannerRes.data)
+    if (trustRes.data && trustRes.data.length > 0) setTrustStripData(trustRes.data)
     setLoading(false)
   } // ✅ FIX 2: fetchData properly closed here
 
@@ -162,19 +165,22 @@ export default function HomePage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '16px'
         }}>
-          {[
-            { icon: <Truck size={20} color="#e53935" />, text: 'Free Delivery', sub: 'Above ₹499' },
-            { icon: <Shield size={20} color="#e53935" />, text: '100% Genuine', sub: 'Verified Products' },
-            { icon: <RefreshCw size={20} color="#e53935" />, text: 'Easy Returns', sub: '7 Day Policy' },
-            { icon: <Tag size={20} color="#e53935" />, text: 'Best Price', sub: 'Guaranteed' },
-          ].map((item, i) => (
+          {(trustStripData.length > 0 ? trustStripData : [
+            { icon_svg:'truck', icon_color:'#e53935', title:'Free Delivery', subtitle:'Above ₹499' },
+            { icon_svg:'shield', icon_color:'#e53935', title:'100% Genuine', subtitle:'Verified Products' },
+            { icon_svg:'refresh', icon_color:'#e53935', title:'Easy Returns', subtitle:'7 Day Policy' },
+            { icon_svg:'tag', icon_color:'#e53935', title:'Best Price', subtitle:'Guaranteed' },
+          ]).map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px' }}>
               <div style={{ background: '#fff5f5', padding: '10px', borderRadius: '8px' }}>
-                {item.icon}
+                {item.icon_svg === 'truck' ? <Truck size={20} color={item.icon_color || '#e53935'} /> :
+                 item.icon_svg === 'shield' ? <Shield size={20} color={item.icon_color || '#e53935'} /> :
+                 item.icon_svg === 'refresh' ? <RefreshCw size={20} color={item.icon_color || '#e53935'} /> :
+                 <Tag size={20} color={item.icon_color || '#e53935'} />}
               </div>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>{item.text}</div>
-                <div style={{ fontSize: '11px', color: '#999' }}>{item.sub}</div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>{item.title || item.text}</div>
+                <div style={{ fontSize: '11px', color: '#999' }}>{item.subtitle || item.sub}</div>
               </div>
             </div>
           ))}

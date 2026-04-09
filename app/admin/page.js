@@ -35,8 +35,10 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderHistory, setOrderHistory] = useState([])
   const [reportFilter, setReportFilter] = useState({ from: '', to: '', status: 'all', category: 'all' })
+const [trustStrips, setTrustStrips] = useState([])
+const [allReviews, setAllReviews] = useState([])
 
-  const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
+  const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', return_policy:'7_days', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
   const [productForm, setProductForm] = useState(emptyProduct)
   const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', is_active:true })
   const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
@@ -55,26 +57,29 @@ export default function AdminPage() {
   }
 
   const fetchAll = async () => {
-    const [p, o, c, s, sl, hb] = await Promise.all([
-      supabase.from('products').select('*, categories(name)').order('created_at', { ascending: false }),
-      supabase.from('orders').select('*').order('created_at', { ascending: false }),
-      supabase.from('categories').select('*').order('sort_order'),
-      supabase.from('site_settings').select('*').order('label'),
-      supabase.from('social_links').select('*').order('sort_order'),
-      supabase.from('hero_banners').select('*').order('sort_order'),
-    ])
-    if (p.data) setProducts(p.data)
-    if (o.data) {
-      setOrders(o.data)
-      const active = o.data.filter(x => x.status !== 'cancelled')
-      const cancelled = o.data.filter(x => x.status === 'cancelled')
-      setStats({ revenue: active.reduce((s, x) => s + (x.final_amount || 0), 0), orders: o.data.length, products: p.data?.length || 0, cancelled: cancelled.length })
-    }
-    if (c.data) setCategories(c.data)
-    if (s.data) setSiteSettings(s.data)
-    if (sl.data) setSocialLinks(sl.data)
-    if (hb.data) setHeroBanners(hb.data)
-  }
+ const [p, o, c, s, sl, hb, ts, rv] = await Promise.all([
+  supabase.from('products').select('*, categories(name)').order('created_at', { ascending: false }),
+  supabase.from('orders').select('*').order('created_at', { ascending: false }),
+  supabase.from('categories').select('*').order('sort_order'),
+  supabase.from('site_settings').select('*').order('label'),
+  supabase.from('social_links').select('*').order('sort_order'),
+  supabase.from('hero_banners').select('*').order('sort_order'),
+  supabase.from('trust_strips').select('*').order('sort_order'),
+  supabase.from('reviews').select('*, profiles(full_name)').order('created_at', { ascending: false }),
+])
+if (p.data) setProducts(p.data)
+if (o.data) {
+  setOrders(o.data)
+  const active = o.data.filter(x => x.status !== 'cancelled')
+  const cancelled = o.data.filter(x => x.status === 'cancelled')
+  setStats({ revenue: active.reduce((s, x) => s + (x.final_amount || 0), 0), orders: o.data.length, products: p.data?.length || 0, cancelled: cancelled.length })
+}
+if (c.data) setCategories(c.data)
+if (s.data) setSiteSettings(s.data)
+if (sl.data) setSocialLinks(sl.data)
+if (hb.data) setHeroBanners(hb.data)
+if (ts.data) setTrustStrips(ts.data)
+if (rv.data) setAllReviews(rv.data)
 
   const slugify = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -88,7 +93,7 @@ export default function AdminPage() {
   const saveProduct = async () => {
     if (!productForm.name || !productForm.mrp || !productForm.sale_price || !productForm.category_id) { toast.error('Fill required fields'); return }
     const discountEndsAt = productForm.discount_timer_hours ? new Date(Date.now() + parseFloat(productForm.discount_timer_hours) * 3600000).toISOString() : null
-    const data = { name: productForm.name, slug: productForm.slug || slugify(productForm.name), description: productForm.description, mrp: parseFloat(productForm.mrp), sale_price: parseFloat(productForm.sale_price), category_id: productForm.category_id, stock: parseInt(productForm.stock) || 0, images: productForm.images || [], discount_ends_at: discountEndsAt, discount_timer_hours: productForm.discount_timer_hours ? parseFloat(productForm.discount_timer_hours) : null, is_featured: productForm.is_featured, is_trending: productForm.is_trending, is_new_arrival: productForm.is_new_arrival, is_active: productForm.is_active }
+    const data = { name: productForm.name, slug: productForm.slug || slugify(productForm.name), description: productForm.description, mrp: parseFloat(productForm.mrp), sale_price: parseFloat(productForm.sale_price), category_id: productForm.category_id, stock: parseInt(productForm.stock) || 0, images: productForm.images || [], discount_ends_at: discountEndsAt, discount_timer_hours: productForm.discount_timer_hours ? parseFloat(productForm.discount_timer_hours) : null, return_policy: productForm.return_policy || '7_days', is_featured: productForm.is_featured, is_trending: productForm.is_trending, is_new_arrival: productForm.is_new_arrival, is_active: productForm.is_active }
     const { error } = editingProduct ? await supabase.from('products').update(data).eq('id', editingProduct.id) : await supabase.from('products').insert(data)
     if (error) { toast.error(error.message); return }
     toast.success(editingProduct ? 'Updated!' : 'Added!')
@@ -97,7 +102,7 @@ export default function AdminPage() {
 
   const editProduct = p => {
     setEditingProduct(p)
-    setProductForm({ name: p.name, slug: p.slug, description: p.description || '', mrp: p.mrp, sale_price: p.sale_price, category_id: p.category_id, stock: p.stock, images: p.images || [], discount_timer_hours: p.discount_timer_hours || '', is_featured: p.is_featured, is_trending: p.is_trending, is_new_arrival: p.is_new_arrival, is_active: p.is_active })
+    setProductForm({ name: p.name, slug: p.slug, description: p.description || '', mrp: p.mrp, sale_price: p.sale_price, category_id: p.category_id, stock: p.stock, images: p.images || [], discount_timer_hours: p.discount_timer_hours || '', return_policy: p.return_policy || '7_days', is_featured: p.is_featured, is_trending: p.is_trending, is_new_arrival: p.is_new_arrival, is_active: p.is_active })
     setShowProductModal(true)
   }
 
@@ -180,15 +185,17 @@ export default function AdminPage() {
   }
 
   const tabs = [
-    { id:'dashboard', label:'Dashboard', icon:'📊' },
-    { id:'products', label:'Products', icon:'📦' },
-    { id:'orders', label:'Orders', icon:'🛒' },
-    { id:'categories', label:'Categories', icon:'🏷️' },
-    { id:'banners', label:'Hero Banners', icon:'🖼️' },
-    { id:'social', label:'Social Links', icon:'🔗' },
-    { id:'settings', label:'Site Settings', icon:'⚙️' },
-    { id:'reports', label:'Reports', icon:'📈' },
-  ]
+  { id:'dashboard', label:'Dashboard', icon:'📊' },
+  { id:'products', label:'Products', icon:'📦' },
+  { id:'orders', label:'Orders', icon:'🛒' },
+  { id:'categories', label:'Categories', icon:'🏷️' },
+  { id:'banners', label:'Hero Banners', icon:'🖼️' },
+  { id:'trust', label:'Trust Strip', icon:'🛡️' },
+  { id:'reviews', label:'Reviews', icon:'⭐' },
+  { id:'social', label:'Social Links', icon:'🔗' },
+  { id:'settings', label:'Site Settings', icon:'⚙️' },
+  { id:'reports', label:'Reports', icon:'📈' },
+]
 
   if (!authChecked) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -524,6 +531,124 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* ===== TRUST STRIP ===== */}
+{tab === 'trust' && (
+  <div>
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+      <div>
+        <h2 style={{ fontSize:'22px', fontWeight:'800' }}>Trust Strip</h2>
+        <p style={{ color:'#999', fontSize:'13px', marginTop:'4px' }}>Manage the feature badges shown below the hero banner</p>
+      </div>
+      <button onClick={async () => {
+        const { error } = await supabase.from('trust_strips').insert({ title:'New Feature', subtitle:'Description', icon_svg:'star', sort_order: trustStrips.length + 1 })
+        if (!error) { toast.success('Added!'); fetchAll() } else toast.error(error.message)
+      }} style={{ background:'#e53935', color:'white', border:'none', padding:'10px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px' }}>
+        <Plus size={16} /> Add Block
+      </button>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
+      {trustStrips.map(strip => (
+        <div key={strip.id} style={{ background:'white', borderRadius:'12px', padding:'20px', border:'1px solid #f0f0f0' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'12px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'40px', height:'40px', background: strip.bg_color || '#fff5f5', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' }}>
+                🛡️
+              </div>
+              <div>
+                <div style={{ fontWeight:'700', fontSize:'15px' }}>{strip.title}</div>
+                <div style={{ fontSize:'12px', color:'#999' }}>{strip.subtitle}</div>
+              </div>
+            </div>
+            <button onClick={async () => { await supabase.from('trust_strips').update({ is_active: !strip.is_active }).eq('id', strip.id); fetchAll() }}
+              style={{ background: strip.is_active ? '#e8f5e9' : '#ffebee', color: strip.is_active ? '#2e7d32' : '#e53935', border:'none', padding:'3px 8px', borderRadius:'5px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>
+              {strip.is_active ? 'Active' : 'Hidden'}
+            </button>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+            <div>
+              <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>TITLE</label>
+              <input id={`ts-title-${strip.id}`} defaultValue={strip.title} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>SUBTITLE</label>
+              <input id={`ts-sub-${strip.id}`} defaultValue={strip.subtitle || ''} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+              <div>
+                <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ICON COLOR</label>
+                <div style={{ display:'flex', gap:'6px' }}>
+                  <input type="color" id={`ts-color-${strip.id}`} defaultValue={strip.icon_color || '#e53935'} style={{ width:'36px', height:'34px', border:'1px solid #e0e0e0', borderRadius:'6px', cursor:'pointer', padding:'2px' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ORDER</label>
+                <input type="number" id={`ts-order-${strip.id}`} defaultValue={strip.sort_order} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:'8px' }}>
+              <button onClick={async () => {
+                await supabase.from('trust_strips').update({
+                  title: document.getElementById(`ts-title-${strip.id}`).value,
+                  subtitle: document.getElementById(`ts-sub-${strip.id}`).value,
+                  icon_color: document.getElementById(`ts-color-${strip.id}`).value,
+                  sort_order: parseInt(document.getElementById(`ts-order-${strip.id}`).value) || 0
+                }).eq('id', strip.id)
+                toast.success('Saved!'); fetchAll()
+              }} style={{ flex:1, background:'#e53935', color:'white', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer' }}>💾 Save</button>
+              <button onClick={async () => { if (!confirm('Delete?')) return; await supabase.from('trust_strips').delete().eq('id', strip.id); fetchAll() }}
+                style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'13px' }}>🗑️</button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* ===== REVIEWS MODERATION ===== */}
+{tab === 'reviews' && (
+  <div>
+    <h2 style={{ fontSize:'22px', fontWeight:'800', marginBottom:'20px' }}>Reviews Moderation ({allReviews.length})</h2>
+    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #f0f0f0', overflow:'hidden' }}>
+      {allReviews.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'48px', color:'#999' }}>No reviews yet</div>
+      ) : allReviews.map(review => (
+        <div key={review.id} style={{ padding:'16px 20px', borderBottom:'1px solid #f5f5f5', display:'flex', gap:'16px', alignItems:'flex-start' }}>
+          <div style={{ flex:1 }}>
+            <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'6px' }}>
+              <span style={{ fontWeight:'700', fontSize:'14px' }}>{review.user_name || review.profiles?.full_name || 'Customer'}</span>
+              <div style={{ display:'flex', gap:'2px' }}>
+                {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= review.rating ? '#ff6f00' : '#ddd', fontSize:'14px' }}>★</span>)}
+              </div>
+              <span style={{ background: review.is_approved ? '#e8f5e9' : review.is_hidden ? '#ffebee' : '#fff3e0', color: review.is_approved ? '#2e7d32' : review.is_hidden ? '#e53935' : '#e65100', padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:'700' }}>
+                {review.is_approved ? 'Approved' : review.is_hidden ? 'Hidden' : 'Pending'}
+              </span>
+              <span style={{ fontSize:'11px', color:'#999' }}>{new Date(review.created_at).toLocaleDateString('en-IN')}</span>
+            </div>
+            <p style={{ color:'#555', fontSize:'13px', lineHeight:'1.6' }}>{review.comment}</p>
+          </div>
+          <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
+            {!review.is_approved && !review.is_hidden && (
+              <button onClick={async () => { await supabase.from('reviews').update({ is_approved: true }).eq('id', review.id); fetchAll() }}
+                style={{ background:'#e8f5e9', color:'#2e7d32', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>✅ Approve</button>
+            )}
+            {review.is_approved && (
+              <button onClick={async () => { await supabase.from('reviews').update({ is_approved: false }).eq('id', review.id); fetchAll() }}
+                style={{ background:'#fff3e0', color:'#e65100', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>↩️ Unapprove</button>
+            )}
+            <button onClick={async () => { await supabase.from('reviews').update({ is_hidden: !review.is_hidden, is_approved: false }).eq('id', review.id); fetchAll() }}
+              style={{ background: review.is_hidden ? '#e8f5e9' : '#ffebee', color: review.is_hidden ? '#2e7d32' : '#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+              {review.is_hidden ? '👁️ Show' : '🚫 Hide'}
+            </button>
+            <button onClick={async () => { if (!confirm('Delete review?')) return; await supabase.from('reviews').delete().eq('id', review.id); fetchAll() }}
+              style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 10px', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>🗑️</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
           {/* ===== REPORTS ===== */}
           {tab === 'reports' && (
             <div>
@@ -796,6 +921,16 @@ export default function AdminPage() {
                     onFocus={e => e.target.style.borderColor='#e53935'} onBlur={e => e.target.style.borderColor='#e0e0e0'} />
                 </div>
               </div>
+              {/* Return Policy */}
+<div>
+  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>↩️ Return Policy</label>
+  <select name="return_policy" value={productForm.return_policy || '7_days'} onChange={handleProductChange} style={{ ...inp, cursor:'pointer' }}>
+    <option value="no_return">❌ No Return</option>
+    <option value="7_days">7 Days Return</option>
+    <option value="10_days">10 Days Return</option>
+    <option value="30_days">30 Days Return</option>
+  </select>
+</div>
               <div style={{ background:'#f8f8f8', borderRadius:'10px', padding:'14px' }}>
                 <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>⏰ Discount Timer</label>
                 <select name="discount_timer_hours" value={productForm.discount_timer_hours} onChange={handleProductChange} style={{ ...inp, background:'white', cursor:'pointer' }}>
@@ -974,4 +1109,5 @@ export default function AdminPage() {
       )}
     </div>
   )
+}
 }

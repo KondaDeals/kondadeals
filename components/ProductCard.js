@@ -6,6 +6,8 @@ import toast from 'react-hot-toast'
 import useStore from '@/lib/store'
 import DiscountTimer from '@/components/DiscountTimer'
 
+const formatINR = n => n?.toLocaleString('en-IN') || '0'
+
 export default function ProductCard({ product }) {
   const { addToCart, toggleWishlist, isInWishlist } = useStore()
   const [adding, setAdding] = useState(false)
@@ -186,11 +188,11 @@ export default function ProductCard({ product }) {
           {/* Price */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '18px', fontWeight: '800', color: '#e53935' }}>
-              ₹{product.sale_price}
-            </span>
-            <span style={{ fontSize: '13px', color: '#999', textDecoration: 'line-through' }}>
-              ₹{product.mrp}
-            </span>
+  ₹{formatINR(product.sale_price)}
+</span>
+<span style={{ fontSize: '13px', color: '#999', textDecoration: 'line-through' }}>
+  ₹{formatINR(product.mrp)}
+</span>
           </div>
 
           {/* Free Delivery tag */}
