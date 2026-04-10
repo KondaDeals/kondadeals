@@ -1038,7 +1038,7 @@ if (rv.data) setAllReviews(rv.data)
                 <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>Description</label>
                 <textarea value={categoryForm.description} onChange={e => setCategoryForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inp, resize:'vertical' }} />
               </div>
-              <div>
+              
  {/* Category Image — URL or direct upload */}
 <div>
   <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>
