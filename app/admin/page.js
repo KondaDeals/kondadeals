@@ -41,7 +41,7 @@ const [allReviews, setAllReviews] = useState([])
   const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', return_policy:'7_days', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
   const [productForm, setProductForm] = useState(emptyProduct)
  const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
-  const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
+  const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
 
   useEffect(() => { checkAdmin() }, [])
 
@@ -225,7 +225,7 @@ if (rv.data) setAllReviews(rv.data)
     const { error } = editingBanner ? await supabase.from('hero_banners').update(bannerForm).eq('id', editingBanner.id) : await supabase.from('hero_banners').insert(bannerForm)
     if (error) { toast.error(error.message); return }
     toast.success('Banner saved!')
-    setShowBannerModal(false); setEditingBanner(null); setBannerForm({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true }); fetchAll()
+    setShowBannerModal(false); setEditingBanner(null); setBannerForm({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true }); fetchAll()
   }
 
   const saveSetting = async (key, value) => {
@@ -1218,20 +1218,43 @@ if (rv.data) setAllReviews(rv.data)
             </div>
 
             {/* Live Preview */}
-            <div style={{ background: bannerForm.bg_gradient, borderRadius:'12px', padding:'24px', marginBottom:'20px', color: bannerForm.text_color }}>
-              {bannerForm.badge_text && <span style={{ background:'rgba(255,255,255,0.2)', padding:'3px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'700' }}>{bannerForm.badge_text}</span>}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px' }}>
-                <div>
-                  <div style={{ fontSize:'24px', fontWeight:'900' }}>{bannerForm.title || 'Banner Title'}</div>
-                  <div style={{ fontSize:'16px', opacity:0.85 }}>{bannerForm.subtitle || 'Subtitle'}</div>
-                  <div style={{ fontSize:'13px', opacity:0.75, marginTop:'4px' }}>{bannerForm.description}</div>
-                </div>
-                <span style={{ fontSize:'48px' }}>{bannerForm.emoji}</span>
-              </div>
-              <button style={{ background: bannerForm.button_color, color: bannerForm.button_text_color, border:'none', padding:'8px 20px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', marginTop:'12px', cursor:'default' }}>
-                {bannerForm.cta_text}
-              </button>
-            </div>
+<div style={{
+  borderRadius:'12px', padding:'24px', marginBottom:'20px',
+  color: bannerForm.text_color,
+  position:'relative', overflow:'hidden',
+  background: (bannerForm.bg_type || 'gradient') === 'image' && bannerForm.bg_image
+    ? `url(${bannerForm.bg_image}) center/cover no-repeat`
+    : (bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image
+    ? `url(${bannerForm.bg_image}) center/cover no-repeat`
+    : (bannerForm.bg_type || 'gradient') === 'none'
+    ? '#f8f8f8'
+    : bannerForm.bg_gradient,
+  minHeight:'140px'
+}}>
+  {/* Overlay layer for image_overlay mode */}
+  {(bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image && (
+    <div style={{
+      position:'absolute', inset:0,
+      background: bannerForm.bg_gradient,
+      opacity: (bannerForm.overlay_opacity || 50) / 100,
+      zIndex:0
+    }} />
+  )}
+  <div style={{ position:'relative', zIndex:1 }}>
+    {bannerForm.badge_text && <span style={{ background:'rgba(255,255,255,0.2)', padding:'3px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'700' }}>{bannerForm.badge_text}</span>}
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px' }}>
+      <div>
+        <div style={{ fontSize:'24px', fontWeight:'900' }}>{bannerForm.title || 'Banner Title'}</div>
+        <div style={{ fontSize:'16px', opacity:0.85 }}>{bannerForm.subtitle || 'Subtitle'}</div>
+        <div style={{ fontSize:'13px', opacity:0.75, marginTop:'4px' }}>{bannerForm.description}</div>
+      </div>
+      <span style={{ fontSize:'48px' }}>{bannerForm.emoji}</span>
+    </div>
+    <button style={{ background: bannerForm.button_color, color: bannerForm.button_text_color, border:'none', padding:'8px 20px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', marginTop:'12px', cursor:'default' }}>
+      {bannerForm.cta_text}
+    </button>
+  </div>
+</div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
@@ -1268,24 +1291,190 @@ if (rv.data) setAllReviews(rv.data)
                   <input value={bannerForm.cta_link} onChange={e => setBannerForm(f => ({ ...f, cta_link: e.target.value }))} placeholder="/collections/all" style={inp} />
                 </div>
               </div>
-              <div>
-                <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Background Gradient (CSS)</label>
-                <input value={bannerForm.bg_gradient} onChange={e => setBannerForm(f => ({ ...f, bg_gradient: e.target.value }))} style={inp} />
-                <div style={{ display:'flex', gap:'6px', marginTop:'6px', flexWrap:'wrap' }}>
-                  {[
-                    { label:'🔴 Red', val:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)' },
-                    { label:'🔵 Blue', val:'linear-gradient(135deg, #1a237e 0%, #283593 100%)' },
-                    { label:'🟢 Green', val:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)' },
-                    { label:'⚫ Dark', val:'linear-gradient(135deg, #212121 0%, #424242 100%)' },
-                    { label:'💜 Purple', val:'linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)' },
-                  ].map(g => (
-                    <button key={g.label} onClick={() => setBannerForm(f => ({ ...f, bg_gradient: g.val }))}
-                      style={{ padding:'4px 10px', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'12px', cursor:'pointer', background: bannerForm.bg_gradient === g.val ? '#fff5f5' : 'white', fontWeight: bannerForm.bg_gradient === g.val ? '700' : '400' }}>
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+             {/* ===== BACKGROUND TYPE SELECTOR ===== */}
+<div style={{ background:'#f8f8f8', borderRadius:'12px', padding:'16px' }}>
+  <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+    🎨 Background Type
+  </label>
+  <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'8px', marginBottom:'14px' }}>
+    {[
+      { val:'gradient', label:'🎨 Color / Gradient', desc:'Solid color or gradient' },
+      { val:'image', label:'🖼️ Image Only', desc:'Full banner image' },
+      { val:'image_overlay', label:'🖼️+🎨 Image + Overlay', desc:'Image with color overlay' },
+      { val:'none', label:'⬜ None', desc:'Transparent / white' },
+    ].map(opt => (
+      <button key={opt.val} type="button"
+        onClick={() => setBannerForm(f => ({ ...f, bg_type: opt.val }))}
+        style={{
+          padding:'10px 12px', border:`2px solid ${(bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#e0e0e0'}`,
+          borderRadius:'10px', cursor:'pointer', textAlign:'left',
+          background: (bannerForm.bg_type || 'gradient') === opt.val ? '#fff5f5' : 'white',
+          transition:'all 0.2s'
+        }}>
+        <div style={{ fontSize:'13px', fontWeight:'700', color: (bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#333' }}>{opt.label}</div>
+        <div style={{ fontSize:'11px', color:'#999', marginTop:'2px' }}>{opt.desc}</div>
+      </button>
+    ))}
+  </div>
+
+  {/* GRADIENT SECTION */}
+  {((bannerForm.bg_type || 'gradient') === 'gradient' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
+    <div style={{ marginBottom:'12px' }}>
+      <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'6px' }}>
+        {(bannerForm.bg_type || 'gradient') === 'image_overlay' ? 'Overlay Color / Gradient' : 'Background Gradient (CSS)'}
+      </label>
+      <input value={bannerForm.bg_gradient} onChange={e => setBannerForm(f => ({ ...f, bg_gradient: e.target.value }))} style={inp}
+        placeholder="linear-gradient(135deg, #e53935 0%, #ff6f00 100%)" />
+      <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
+        {[
+          { label:'🔴 Red-Orange', val:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)' },
+          { label:'🔵 Navy', val:'linear-gradient(135deg, #1a237e 0%, #283593 100%)' },
+          { label:'🟢 Green', val:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)' },
+          { label:'⚫ Dark', val:'linear-gradient(135deg, #212121 0%, #424242 100%)' },
+          { label:'💜 Purple', val:'linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)' },
+          { label:'🩵 Teal', val:'linear-gradient(135deg, #00838f 0%, #006064 100%)' },
+          { label:'🌅 Sunset', val:'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+          { label:'🌊 Ocean', val:'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+        ].map(g => (
+          <button key={g.label} type="button" onClick={() => setBannerForm(f => ({ ...f, bg_gradient: g.val }))}
+            style={{ padding:'4px 10px', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', background: bannerForm.bg_gradient === g.val ? '#fff5f5' : 'white', fontWeight: bannerForm.bg_gradient === g.val ? '700' : '400', transition:'all 0.2s' }}>
+            {g.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* IMAGE UPLOAD SECTION */}
+  {((bannerForm.bg_type || 'gradient') === 'image' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
+    <div>
+      <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>
+        Banner Image
+      </label>
+
+      {/* Mode toggle */}
+      <div style={{ display:'flex', background:'#efefef', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
+        {['url', 'upload'].map(mode => (
+          <button key={mode} type="button"
+            onClick={() => setBannerForm(f => ({ ...f, _bannerImgMode: mode }))}
+            style={{
+              padding:'5px 14px', border:'none', cursor:'pointer', borderRadius:'6px',
+              fontSize:'12px', fontWeight:'700',
+              background: (bannerForm._bannerImgMode || 'url') === mode ? 'white' : 'transparent',
+              color: (bannerForm._bannerImgMode || 'url') === mode ? '#e53935' : '#999',
+              boxShadow: (bannerForm._bannerImgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+            }}>
+            {mode === 'url' ? '🔗 URL' : '📁 Upload'}
+          </button>
+        ))}
+      </div>
+
+      {/* URL input */}
+      {(bannerForm._bannerImgMode || 'url') === 'url' && (
+        <input value={bannerForm.bg_image || ''}
+          onChange={e => setBannerForm(f => ({ ...f, bg_image: e.target.value }))}
+          placeholder="https://example.com/banner.jpg"
+          style={inp} />
+      )}
+
+      {/* File upload */}
+      {(bannerForm._bannerImgMode || 'url') === 'upload' && (
+        <div>
+          <input type="file" id="bannerImageFile" accept="image/jpeg,image/png,image/webp"
+            style={{ display:'none' }}
+            onChange={async (e) => {
+              const file = e.target.files[0]
+              if (!file) return
+              if (file.size > 10 * 1024 * 1024) { toast.error('Max 10MB for banners'); return }
+              setBannerForm(f => ({ ...f, _bannerUploading: true }))
+              try {
+                const fileName = `banners/${Date.now()}-${file.name.replace(/\s/g,'-')}`
+                const { data, error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl:'3600', upsert:false })
+                if (!error && data) {
+                  const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
+                  setBannerForm(f => ({ ...f, bg_image: urlData.publicUrl, _bannerUploading: false }))
+                  toast.success('✅ Banner image uploaded!')
+                } else {
+                  const reader = new FileReader()
+                  reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
+                  reader.readAsDataURL(file)
+                  toast.success('✅ Image loaded!')
+                }
+              } catch {
+                const reader = new FileReader()
+                reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
+                reader.readAsDataURL(file)
+              }
+            }}
+          />
+          {bannerForm._bannerUploading ? (
+            <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'24px', textAlign:'center', background:'#fff5f5' }}>
+              <div style={{ fontSize:'20px' }}>⏳</div>
+              <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600', marginTop:'6px' }}>Uploading...</div>
+            </div>
+          ) : (
+            <div onClick={() => document.getElementById('bannerImageFile').click()}
+              style={{ border:'2px dashed #e0e0e0', borderRadius:'10px', padding:'24px', textAlign:'center', cursor:'pointer', background:'#f8f8f8', transition:'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935' }}
+              onDrop={e => {
+                e.preventDefault()
+                const file = e.dataTransfer.files[0]
+                if (file) {
+                  const input = document.getElementById('bannerImageFile')
+                  const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files
+                  input.dispatchEvent(new Event('change', { bubbles:true }))
+                }
+              }}>
+              <div style={{ fontSize:'28px', marginBottom:'6px' }}>🖼️</div>
+              <div style={{ fontSize:'13px', fontWeight:'700', color:'#333' }}>Click or drag banner image</div>
+              <div style={{ fontSize:'11px', color:'#999', marginTop:'3px' }}>JPG, PNG, WEBP — max 10MB</div>
+              <div style={{ fontSize:'10px', color:'#bbb', marginTop:'3px' }}>Recommended: 1280×480px or wider</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image preview + remove */}
+      {bannerForm.bg_image && !bannerForm._bannerUploading && (
+        <div style={{ marginTop:'10px', borderRadius:'10px', overflow:'hidden', border:'1px solid #e0e0e0', position:'relative' }}>
+          <img src={bannerForm.bg_image} alt="Banner preview"
+            style={{ width:'100%', height:'120px', objectFit:'cover', display:'block' }}
+            onError={e => e.target.style.display='none'} />
+          <button type="button"
+            onClick={() => setBannerForm(f => ({ ...f, bg_image: '' }))}
+            style={{ position:'absolute', top:'8px', right:'8px', background:'rgba(229,57,53,0.9)', color:'white', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+            ✕ Remove
+          </button>
+          <div style={{ padding:'8px 12px', background:'white', fontSize:'11px', color:'#2e7d32', fontWeight:'600' }}>
+            ✅ Banner image ready
+          </div>
+        </div>
+      )}
+
+      {/* Overlay settings for image_overlay mode */}
+      {(bannerForm.bg_type || 'gradient') === 'image_overlay' && (
+        <div style={{ marginTop:'12px', background:'white', borderRadius:'8px', padding:'12px', border:'1px solid #e0e0e0' }}>
+          <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>
+            Overlay Opacity
+          </label>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            <input type="range" min="0" max="100" value={bannerForm.overlay_opacity || 50}
+              onChange={e => setBannerForm(f => ({ ...f, overlay_opacity: parseInt(e.target.value) }))}
+              style={{ flex:1, accentColor:'#e53935' }} />
+            <span style={{ fontSize:'13px', fontWeight:'700', color:'#e53935', minWidth:'36px' }}>
+              {bannerForm.overlay_opacity || 50}%
+            </span>
+          </div>
+          <div style={{ fontSize:'11px', color:'#999', marginTop:'4px' }}>
+            Higher opacity = more color, less image visible
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px' }}>
                 <div>
                   <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Text Color</label>

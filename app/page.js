@@ -71,12 +71,27 @@ supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_orde
 
       {/* HERO BANNER */}
       <div style={{
-        background: banner.bg_gradient,
-        padding: '48px 20px',
-        transition: 'background 0.8s ease',
-        position: 'relative',
-        overflow: 'hidden'
+  background: (banner.bg_type || 'gradient') === 'image' && banner.bg_image
+    ? `url(${banner.bg_image}) center/cover no-repeat`
+    : (banner.bg_type || 'gradient') === 'image_overlay' && banner.bg_image
+    ? `url(${banner.bg_image}) center/cover no-repeat`
+    : (banner.bg_type || 'gradient') === 'none'
+    ? '#f8f8f8'
+    : banner.bg_gradient,
+  padding: '48px 20px',
+  position: 'relative',
+  overflow: 'hidden',
       }}>
+        {/* Overlay for image_overlay mode */}
+{(banner.bg_type || 'gradient') === 'image_overlay' && banner.bg_image && (
+  <div style={{
+    position:'absolute', inset:0,
+    background: banner.bg_gradient,
+    opacity: (banner.overlay_opacity || 50) / 100,
+    zIndex: 0
+  }} />
+)}
+<div style={{ position:'relative', zIndex:1 }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '32px' }}>
           <div style={{ color: 'white', flex: 1 }}>
             <span style={{
@@ -132,6 +147,7 @@ supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_orde
           <div style={{ fontSize: '120px', flexShrink: 0 }}>
             {banner.emoji}
           </div>
+        </div>
         </div>
 
         {/* Banner dots */}
