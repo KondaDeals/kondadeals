@@ -26,7 +26,7 @@ export default function CollectionPage() {
     try {
       let query = supabase
         .from('products')
-        .select('*, categories(name, slug)')
+        .select('id,name,slug,mrp,sale_price,images,is_trending,is_featured,is_new_arrival,discount_ends_at,stock,category_id,categories(name)')
         .eq('is_active', true)
 
       // Filter by category

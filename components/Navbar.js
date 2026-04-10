@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ShoppingCart, Search, Menu, X, Heart, User } from 'lucide-react'
 import useStore from '@/lib/store'
 import { supabase } from '@/lib/supabase'
+import { memo, useCallback } from 'react'
 
-export default function Navbar() {
+const Navbar = memo(function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [scrolled, setScrolled] = useState(false)
@@ -234,4 +235,5 @@ useEffect(() => {
       </nav>
     </>
   )
-}
+})
+export default Navbar
