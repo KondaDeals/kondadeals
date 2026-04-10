@@ -222,21 +222,32 @@ supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_orde
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
               >
-                {cat.image_url ? (
-  <img
-    src={cat.image_url}
-    alt={cat.name}
-    style={{ width: '52px', height: '52px', objectFit: 'contain', marginBottom: '8px' }}
-    onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
-  />
-) : (
-  <div style={{ fontSize: '36px', marginBottom: '8px' }}>
-    {categoryIcons[cat.slug] || '🛍️'}
-  </div>
-)}
-<span style={{ fontSize: '36px', marginBottom: '8px', display: 'none' }}>
-  {categoryIcons[cat.slug] || '🛍️'}
-</span>
+<div style={{ 
+  width: '64px', height: '64px', 
+  display: 'flex', alignItems: 'center', 
+  justifyContent: 'center', marginBottom: '8px',
+  margin: '0 auto 8px auto'
+}}>
+  {cat.image_url ? (
+    <img
+      src={cat.image_url}
+      alt={cat.name}
+      style={{ 
+        width: '52px', height: '52px', 
+        objectFit: 'contain',
+        display: 'block'
+      }}
+      onError={e => { 
+        e.target.style.display = 'none'
+        e.target.parentNode.innerHTML = categoryIcons[cat.slug] || '🛍️'
+      }}
+    />
+  ) : (
+    <span style={{ fontSize: '36px', lineHeight: '1' }}>
+      {categoryIcons[cat.slug] || '🛍️'}
+    </span>
+  )}
+</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a1a' }}>{cat.name}</div>
               </div>
             </Link>
