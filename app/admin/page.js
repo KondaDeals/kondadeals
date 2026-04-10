@@ -1039,27 +1039,158 @@ if (rv.data) setAllReviews(rv.data)
                 <textarea value={categoryForm.description} onChange={e => setCategoryForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inp, resize:'vertical' }} />
               </div>
               <div>
-  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>Category Image URL</label>
-  <input
-    value={categoryForm.image_url || ''}
-    onChange={e => setCategoryForm(f => ({ ...f, image_url: e.target.value }))}
-    placeholder="https://example.com/image.jpg"
-    style={inp}
-    onFocus={e => e.target.style.borderColor='#e53935'}
-    onBlur={e => e.target.style.borderColor='#e0e0e0'}
-  />
-  {categoryForm.image_url && (
-    <div style={{ marginTop:'8px', display:'flex', alignItems:'center', gap:'10px', background:'#f8f8f8', padding:'8px', borderRadius:'8px' }}>
+ {/* Category Image — URL or direct upload */}
+<div>
+  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>
+    Category Image
+  </label>
+
+  {/* Tab toggle — URL vs Upload */}
+  <div style={{ display:'flex', background:'#f5f5f5', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
+    {['url', 'upload'].map(mode => (
+      <button key={mode} type="button"
+        onClick={() => setCategoryForm(f => ({ ...f, _imgMode: mode }))}
+        style={{
+          padding:'6px 16px', border:'none', cursor:'pointer',
+          borderRadius:'6px', fontSize:'12px', fontWeight:'700',
+          background: (categoryForm._imgMode || 'url') === mode ? 'white' : 'transparent',
+          color: (categoryForm._imgMode || 'url') === mode ? '#e53935' : '#999',
+          boxShadow: (categoryForm._imgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+          transition:'all 0.2s'
+        }}>
+        {mode === 'url' ? '🔗 Paste URL' : '📁 Upload File'}
+      </button>
+    ))}
+  </div>
+
+  {/* URL Input */}
+  {(categoryForm._imgMode || 'url') === 'url' && (
+    <input
+      value={categoryForm.image_url || ''}
+      onChange={e => setCategoryForm(f => ({ ...f, image_url: e.target.value }))}
+      placeholder="https://example.com/category-image.jpg"
+      style={inp}
+      onFocus={e => e.target.style.borderColor='#e53935'}
+      onBlur={e => e.target.style.borderColor='#e0e0e0'}
+    />
+  )}
+
+  {/* File Upload */}
+  {(categoryForm._imgMode || 'url') === 'upload' && (
+    <div>
+      <input
+        type="file"
+        id="catImageFile"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display:'none' }}
+        onChange={async (e) => {
+          const file = e.target.files[0]
+          if (!file) return
+          if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return }
+
+          // Show uploading state
+          setCategoryForm(f => ({ ...f, _uploading: true }))
+
+          try {
+            // Try Supabase Storage first
+            const fileName = `categories/${Date.now()}-${file.name.replace(/\s/g, '-')}`
+            const { data, error } = await supabase.storage
+              .from('product-images')
+              .upload(fileName, file, { cacheControl: '3600', upsert: false })
+
+            if (!error && data) {
+              const { data: urlData } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(data.path)
+              setCategoryForm(f => ({ ...f, image_url: urlData.publicUrl, _uploading: false }))
+              toast.success('✅ Image uploaded!')
+            } else {
+              // Fallback: convert to base64 for preview
+              const reader = new FileReader()
+              reader.onload = (ev) => {
+                setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false }))
+                toast.success('✅ Image loaded!')
+              }
+              reader.readAsDataURL(file)
+            }
+          } catch (err) {
+            // Fallback to base64
+            const reader = new FileReader()
+            reader.onload = (ev) => {
+              setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false }))
+              toast.success('✅ Image loaded!')
+            }
+            reader.readAsDataURL(file)
+          }
+        }}
+      />
+
+      {categoryForm._uploading ? (
+        <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'32px', textAlign:'center', background:'#fff5f5' }}>
+          <div style={{ fontSize:'24px', marginBottom:'8px' }}>⏳</div>
+          <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600' }}>Uploading image...</div>
+        </div>
+      ) : (
+        <div
+          onClick={() => document.getElementById('catImageFile').click()}
+          style={{
+            border:'2px dashed #e0e0e0', borderRadius:'10px',
+            padding:'28px', textAlign:'center', cursor:'pointer',
+            background:'#f8f8f8', transition:'all 0.2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
+          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+          onDrop={e => {
+            e.preventDefault()
+            e.currentTarget.style.borderColor='#e0e0e0'
+            e.currentTarget.style.background='#f8f8f8'
+            const file = e.dataTransfer.files[0]
+            if (file) {
+              // Trigger same logic via file input
+              const input = document.getElementById('catImageFile')
+              const dt = new DataTransfer()
+              dt.items.add(file)
+              input.files = dt.files
+              input.dispatchEvent(new Event('change', { bubbles: true }))
+            }
+          }}
+        >
+          <div style={{ fontSize:'32px', marginBottom:'8px' }}>📁</div>
+          <div style={{ fontSize:'14px', fontWeight:'700', color:'#333', marginBottom:'4px' }}>
+            Click to upload or drag & drop
+          </div>
+          <div style={{ fontSize:'11px', color:'#999' }}>
+            JPG, PNG, WEBP — max 5MB
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Preview — shown for both modes */}
+  {categoryForm.image_url && !categoryForm._uploading && (
+    <div style={{
+      marginTop:'10px', display:'flex', alignItems:'center',
+      gap:'12px', background:'#f8f8f8', padding:'10px 14px',
+      borderRadius:'10px', border:'1px solid #e0e0e0'
+    }}>
       <img
         src={categoryForm.image_url}
         alt="preview"
-        style={{ width:'50px', height:'50px', objectFit:'cover', borderRadius:'6px' }}
-        onError={e => e.target.style.display='none'}
+        style={{ width:'60px', height:'60px', objectFit:'cover', borderRadius:'8px', border:'1px solid #e0e0e0', flexShrink:0 }}
+        onError={e => { e.target.style.display='none' }}
       />
-      <span style={{ fontSize:'12px', color:'#2e7d32', fontWeight:'600' }}>✅ Image preview</span>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:'12px', color:'#2e7d32', fontWeight:'700' }}>✅ Image ready</div>
+        <div style={{ fontSize:'11px', color:'#999', marginTop:'2px', wordBreak:'break-all', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {categoryForm.image_url.startsWith('data:') ? 'Uploaded file (base64)' : categoryForm.image_url}
+        </div>
+      </div>
       <button
-        onClick={() => setCategoryForm(f => ({ ...f, image_url: '' }))}
-        style={{ background:'none', border:'none', color:'#e53935', cursor:'pointer', fontSize:'12px', marginLeft:'auto' }}>
+        type="button"
+        onClick={() => setCategoryForm(f => ({ ...f, image_url: '', _imgMode: 'url' }))}
+        style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', cursor:'pointer', fontSize:'12px', fontWeight:'700', flexShrink:0 }}>
         ✕ Remove
       </button>
     </div>
