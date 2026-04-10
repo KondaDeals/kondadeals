@@ -221,8 +221,14 @@ if (rv.data) setAllReviews(rv.data)
 
   // ===== BANNER FUNCTIONS =====
   const saveBanner = async () => {
-    if (!bannerForm.title) { toast.error('Enter title'); return }
-    const { error } = editingBanner ? await supabase.from('hero_banners').update(bannerForm).eq('id', editingBanner.id) : await supabase.from('hero_banners').insert(bannerForm)
+  if (!bannerForm.title) { toast.error('Enter title'); return }
+
+  // Strip UI-only fields before saving to DB
+  const { _bannerImgMode, _bannerUploading, _imgMode, _uploading, ...cleanForm } = bannerForm
+
+  const { error } = editingBanner
+    ? await supabase.from('hero_banners').update(cleanForm).eq('id', editingBanner.id)
+    : await supabase.from('hero_banners').insert(cleanForm)
     if (error) { toast.error(error.message); return }
     toast.success('Banner saved!')
     setShowBannerModal(false); setEditingBanner(null); setBannerForm({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true }); fetchAll()
