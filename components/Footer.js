@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo} from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -56,7 +56,7 @@ const TwitterIcon = () => (
 
 const socialSVGIcons = { YouTube: YouTubeIcon, Instagram: InstagramIcon, Facebook: FacebookIcon, Telegram: TelegramIcon, Twitter: TwitterIcon }
 
-export default function Footer() {
+const Footer = memo(function Footer() {
   const [socialLinks, setSocialLinks] = useState([])
   const [settings, setSettings] = useState({})
 
@@ -261,4 +261,6 @@ export default function Footer() {
       </div>
     </footer>
   )
-}
+
+})          // ← close the memo( wrapper
+export default Footer

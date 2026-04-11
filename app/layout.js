@@ -32,6 +32,11 @@ export default function RootLayout({ children }) {
         <link rel="shortcut icon" href="/favicon.png" type="image/png" />
         <meta name="theme-color" content="#e53935" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        {/* Preconnect to Supabase for faster API calls */}
+  <link rel="preconnect" href="https://ymnsirmzoxvnbxcmmtpw.supabase.co" />
+  <link rel="dns-prefetch" href="https://ymnsirmzoxvnbxcmmtpw.supabase.co" />
+  {/* Preconnect to CDN for faster image loading */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
       <body>
         <Toaster

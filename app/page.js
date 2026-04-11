@@ -140,33 +140,55 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [displayBanners.length])
 
-  const fetchCriticalData = async () => {
-    // Fetch hero banners + categories first (above fold)
-    const [bannerRes, catRes] = await Promise.all([
-      supabase.from('hero_banners').select('id,title,subtitle,description,badge_text,cta_text,cta_link,bg_gradient,bg_type,bg_image,overlay_opacity,text_color,button_color,button_text_color,emoji,sort_order').eq('is_active', true).order('sort_order').limit(5),
-      supabase.from('categories').select('id,name,slug,image_url').eq('is_active', true).order('sort_order').limit(10),
-    ])
-    if (bannerRes.data?.length > 0) setHeroBanners(bannerRes.data)
-    if (catRes.data) setCategories(catRes.data)
+const fetchCriticalData = useCallback(async () => {
+  try {
+    // Use cached API route instead of direct Supabase calls
+    const res = await fetch('/api/homepage', {
+      next: { revalidate: 60 },
+    })
+    const data = await res.json()
+
+    if (data.banners?.length > 0) setHeroBanners(data.banners)
+    if (data.categories?.length > 0) setCategories(data.categories)
+
     setBannerLoaded(true)
 
-    // Then fetch products (below fold for most users)
-    fetchProducts()
-  }
+    // Set products immediately from same response
+    if (data.featured?.length > 0) setFeaturedProducts(data.featured)
+    if (data.trending?.length > 0) setTrendingProducts(data.trending)
+    if (data.newArrivals?.length > 0) setNewArrivals(data.newArrivals)
+    if (data.trustStrips?.length > 0) setTrustStrips(data.trustStrips)
 
-  const fetchProducts = async () => {
-    const [featured, trending, newArr, trustRes] = await Promise.all([
-      supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,is_featured,discount_ends_at,categories(name)').eq('is_featured', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-      supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_trending', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-      supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-      supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_order').limit(6),
-    ])
-    if (featured.data) setFeaturedProducts(featured.data)
-    if (trending.data) setTrendingProducts(trending.data)
-    if (newArr.data) setNewArrivals(newArr.data)
-    if (trustRes.data?.length > 0) setTrustStrips(trustRes.data)
     setLoading(false)
+  } catch (err) {
+    // Fallback to direct Supabase
+    fetchFromSupabase()
   }
+}, [])
+
+const fetchFromSupabase = async () => {
+  const [bannerRes, catRes] = await Promise.all([
+    supabase.from('hero_banners').select('*').eq('is_active', true).order('sort_order').limit(5),
+    supabase.from('categories').select('id,name,slug,image_url').eq('is_active', true).order('sort_order').limit(10),
+  ])
+  if (bannerRes.data?.length > 0) setHeroBanners(bannerRes.data)
+  if (catRes.data) setCategories(catRes.data)
+  setBannerLoaded(true)
+}
+
+const fetchProducts = async () => {
+  const [featured, trending, newArr, trustRes] = await Promise.all([
+    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,is_featured,discount_ends_at,categories(name)').eq('is_featured', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_trending', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+    supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_order').limit(6),
+  ])
+  if (featured.data) setFeaturedProducts(featured.data)
+  if (trending.data) setTrendingProducts(trending.data)
+  if (newArr.data) setNewArrivals(newArr.data)
+  if (trustRes.data?.length > 0) setTrustStrips(trustRes.data)
+  setLoading(false)
+}
 
   const getBannerBackground = useCallback((banner) => {
     if (!banner) return '#e53935'
