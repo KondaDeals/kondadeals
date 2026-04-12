@@ -178,7 +178,16 @@ useEffect(() => {
               </span>
             </Link>
             {categories.map(cat => (
-              <Link key={cat.id} href={`/collections/${cat.slug}`} style={{ textDecoration: 'none' }}>
+              <Link
+    key={cat.id}
+    href={`/collections/${cat.slug}`}
+    style={{ textDecoration: 'none' }}
+    onMouseEnter={() => {
+      // Prefetch on hover — page loads instantly on click
+      fetch(`/api/collections/${cat.slug}`, { cache: 'force-cache' })
+        .catch(() => {})
+    }}
+  >
                 <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', background: '#f5f5f5', color: '#333', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block', transition: 'all 0.2s' }}
                   onMouseEnter={e => { e.target.style.background = '#e53935'; e.target.style.color = 'white' }}
                   onMouseLeave={e => { e.target.style.background = '#f5f5f5'; e.target.style.color = '#333' }}>

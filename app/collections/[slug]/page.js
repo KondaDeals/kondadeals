@@ -8,6 +8,7 @@ import Footer from '@/components/Footer'
 import useStore from '@/lib/store'
 import toast from 'react-hot-toast'
 import { Grid, List, SlidersHorizontal, X, ChevronDown } from 'lucide-react'
+import { getCachedProducts, setCachedProducts } from '@/lib/store'
 
 const formatINR = n => n?.toLocaleString('en-IN') || '0'
 
@@ -123,53 +124,97 @@ export default function CollectionsPage() {
     fetchProducts()
   }, [slug])
 
-  const fetchProducts = async () => {
-    try {
-      let query = supabase
-        .from('products')
-        .select('id,name,slug,mrp,sale_price,images,is_trending,is_featured,is_new_arrival,stock,discount_ends_at,category_id,categories(name,slug)')
-        .eq('is_active', true)
-
-      if (isNewArrivals) {
-        query = query.order('created_at', { ascending: false }).limit(40)
-        setCategoryName('New Arrivals')
-      } else if (isBestSellers) {
-        query = query.eq('is_featured', true).order('created_at', { ascending: false }).limit(40)
-        setCategoryName('Best Sellers')
-      } else if (!isAll) {
-        // Get category first
-        const { data: cat } = await supabase
-          .from('categories')
-          .select('id,name')
-          .eq('slug', slug)
-          .single()
-
-        if (cat) {
-          setCategoryName(cat.name)
-          query = query.eq('category_id', cat.id).order('created_at', { ascending: false }).limit(60)
-        } else {
-          setCategoryName(slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
-          query = query.order('created_at', { ascending: false }).limit(60)
-        }
-      } else {
-        setCategoryName('All Products')
-        query = query.order('created_at', { ascending: false }).limit(80)
-      }
-
-      const { data, error: err } = await query
-
-      if (err) throw err
-      setAllProducts(data || [])
-      setError(false)
-    } catch (err) {
-      console.error('Products fetch error:', err)
-      setError(true)
-      // Retry once after 2 seconds
-      setTimeout(() => retryFetch(), 2000)
-    } finally {
-      setLoading(false)
-    }
+ const fetchProducts = async () => {
+  // Check browser cache first — instant load
+  const cacheKey = `products-${slug}`
+  const cached = getCachedProducts(cacheKey)
+  if (cached) {
+    setAllProducts(cached.products)
+    setCategoryName(cached.categoryName || '')
+    setLoading(false)
+    setError(false)
+    // Refresh in background silently
+    refreshInBackground(cacheKey)
+    return
   }
+
+  try {
+    const res = await fetch(`/api/collections/${slug}`, {
+      cache: 'force-cache',
+      next: { revalidate: 60 }
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (data.products?.length >= 0) {
+        setAllProducts(data.products)
+        if (data.categoryName) setCategoryName(data.categoryName)
+        // ✅ Save to cache
+        setCachedProducts(cacheKey, { products: data.products, categoryName: data.categoryName || '' })
+        setError(false)
+        setLoading(false)
+        return
+      }
+    }
+  } catch (e) {
+    // Fall through to direct Supabase
+  }
+
+  try {
+    let query = supabase
+      .from('products')
+      .select('id,name,slug,mrp,sale_price,images,is_trending,stock,categories(name,slug)')
+      .eq('is_active', true)
+
+    if (isNewArrivals) {
+      query = query.order('created_at', { ascending: false }).limit(40)
+      setCategoryName('New Arrivals')
+    } else if (isBestSellers) {
+      query = query.eq('is_featured', true).order('created_at', { ascending: false }).limit(40)
+      setCategoryName('Best Sellers')
+    } else if (!isAll) {
+      const { data: cat } = await supabase
+        .from('categories').select('id,name').eq('slug', slug).single()
+      if (cat) {
+        setCategoryName(cat.name)
+        query = query.eq('category_id', cat.id).order('created_at', { ascending: false }).limit(60)
+      } else {
+        setCategoryName(slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+        query = query.order('created_at', { ascending: false }).limit(60)
+      }
+    } else {
+      setCategoryName('All Products')
+      query = query.order('created_at', { ascending: false }).limit(80)
+    }
+
+    const { data, error: err } = await query
+    if (err) throw err
+    setAllProducts(data || [])
+    // ✅ Save to cache
+    setCachedProducts(cacheKey, { products: data || [], categoryName })
+    setError(false)
+  } catch (err) {
+    console.error(err)
+    setError(true)
+    setTimeout(() => retryFetch(), 2000)
+  } finally {
+    setLoading(false)
+  }
+}
+
+const refreshInBackground = async (cacheKey) => {
+  try {
+    const res = await fetch(`/api/collections/${slug}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.products) {
+        setCachedProducts(cacheKey, data)
+        setAllProducts(data.products)
+        if (data.categoryName) setCategoryName(data.categoryName)
+      }
+    }
+  } catch (e) {}
+}
 
   const retryFetch = async () => {
     setLoading(true)
