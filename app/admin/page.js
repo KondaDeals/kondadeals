@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import ImageUpload from '@/components/ImageUpload'
 import { Plus, X, Save, Edit, Trash2 } from 'lucide-react'
+import { formatINR } from '@/lib/currency'
 
 const ADMIN_EMAILS = ['iamkondakirankumarreddy@gmail.com']
 
@@ -35,12 +36,12 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderHistory, setOrderHistory] = useState([])
   const [reportFilter, setReportFilter] = useState({ from: '', to: '', status: 'all', category: 'all' })
-const [trustStrips, setTrustStrips] = useState([])
-const [allReviews, setAllReviews] = useState([])
+  const [trustStrips, setTrustStrips] = useState([])
+  const [allReviews, setAllReviews] = useState([])
 
   const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', return_policy:'7_days', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
   const [productForm, setProductForm] = useState(emptyProduct)
- const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
+  const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
   const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
 
   useEffect(() => { checkAdmin() }, [])
@@ -57,34 +58,33 @@ const [allReviews, setAllReviews] = useState([])
   }
 
   const fetchAll = async () => {
- const [p, o, c, s, sl, hb, ts, rv] = await Promise.all([
-  supabase.from('products').select('*, categories(name)').order('created_at', { ascending: false }),
-  supabase.from('orders').select('*').order('created_at', { ascending: false }),
-  supabase.from('categories').select('*').order('sort_order'),
-  supabase.from('site_settings').select('*').order('label'),
-  supabase.from('social_links').select('*').order('sort_order'),
-  supabase.from('hero_banners').select('*').order('sort_order'),
-  supabase.from('trust_strips').select('*').order('sort_order'),
-  supabase.from('reviews').select('*, profiles(full_name)').order('created_at', { ascending: false }),
-])
-if (p.data) setProducts(p.data)
-if (o.data) {
-  setOrders(o.data)
-  const active = o.data.filter(x => x.status !== 'cancelled')
-  const cancelled = o.data.filter(x => x.status === 'cancelled')
-  setStats({ revenue: active.reduce((s, x) => s + (x.final_amount || 0), 0), orders: o.data.length, products: p.data?.length || 0, cancelled: cancelled.length })
-}
-if (c.data) setCategories(c.data)
-if (s.data) setSiteSettings(s.data)
-if (sl.data) setSocialLinks(sl.data)
-if (hb.data) setHeroBanners(hb.data)
-if (ts.data) setTrustStrips(ts.data)
-if (rv.data) setAllReviews(rv.data)
-}
+    const [p, o, c, s, sl, hb, ts, rv] = await Promise.all([
+      supabase.from('products').select('*, categories(name)').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('categories').select('*').order('sort_order'),
+      supabase.from('site_settings').select('*').order('label'),
+      supabase.from('social_links').select('*').order('sort_order'),
+      supabase.from('hero_banners').select('*').order('sort_order'),
+      supabase.from('trust_strips').select('*').order('sort_order'),
+      supabase.from('reviews').select('*, profiles(full_name)').order('created_at', { ascending: false }),
+    ])
+    if (p.data) setProducts(p.data)
+    if (o.data) {
+      setOrders(o.data)
+      const active = o.data.filter(x => x.status !== 'cancelled')
+      const cancelled = o.data.filter(x => x.status === 'cancelled')
+      setStats({ revenue: active.reduce((s, x) => s + (x.final_amount || 0), 0), orders: o.data.length, products: p.data?.length || 0, cancelled: cancelled.length })
+    }
+    if (c.data) setCategories(c.data)
+    if (s.data) setSiteSettings(s.data)
+    if (sl.data) setSocialLinks(sl.data)
+    if (hb.data) setHeroBanners(hb.data)
+    if (ts.data) setTrustStrips(ts.data)
+    if (rv.data) setAllReviews(rv.data)
+  }
 
   const slugify = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-  // ===== PRODUCT FUNCTIONS =====
   const handleProductChange = e => {
     const { name, value, type, checked } = e.target
     if (name === 'name') setProductForm(p => ({ ...p, name: value, slug: slugify(value) }))
@@ -113,7 +113,6 @@ if (rv.data) setAllReviews(rv.data)
     if (!error) { toast.success('Deleted!'); fetchAll() } else toast.error(error.message)
   }
 
-  // ===== ORDER FUNCTIONS =====
   const openOrder = async (order) => {
     setSelectedOrder({ ...order, new_tracking: order.tracking_number || '', new_courier: order.courier_name || '', new_status: order.status })
     const { data } = await supabase.from('order_status_history').select('*').eq('order_id', order.id).order('created_at', { ascending: true })
@@ -122,113 +121,98 @@ if (rv.data) setAllReviews(rv.data)
   }
 
   const updateOrderStatus = async () => {
-  if (!selectedOrder) return
-  const { new_status, new_tracking, new_courier, id } = selectedOrder
-  const updates = {
-    status: new_status,
-    status_updated_at: new Date().toISOString()
-  }
-  if (new_tracking) {
-    updates.tracking_number = new_tracking
-    updates.courier_name = new_courier
-  }
+    if (!selectedOrder) return
+    const { new_status, new_tracking, new_courier, id } = selectedOrder
+    const updates = {
+      status: new_status,
+      status_updated_at: new Date().toISOString()
+    }
+    if (new_tracking) {
+      updates.tracking_number = new_tracking
+      updates.courier_name = new_courier
+    }
 
-  const { error } = await supabase.from('orders').update(updates).eq('id', id)
-  if (error) { toast.error(error.message); return }
+    const { error } = await supabase.from('orders').update(updates).eq('id', id)
+    if (error) { toast.error(error.message); return }
 
-  // Add to history
-  await supabase.from('order_status_history').insert({
-    order_id: id,
-    status: new_status,
-    tracking_number: new_tracking || null,
-    remarks: new_tracking
-      ? `Shipped via ${new_courier || 'courier'}. Tracking: ${new_tracking}`
-      : `Status updated to ${new_status}`
-  })
-
-  // Send notification
-  try {
-    const notifyType = new_status === 'shipped' ? 'order_shipped'
-      : new_status === 'delivered' ? 'order_delivered'
-      : 'order_placed'
-
-    await fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: notifyType,
-        order: {
-          ...selectedOrder,
-          tracking_number: new_tracking,
-          courier_name: new_courier
-        },
-        phone: selectedOrder.phone,
-        email: selectedOrder.user_email || '',
-      })
+    await supabase.from('order_status_history').insert({
+      order_id: id,
+      status: new_status,
+      tracking_number: new_tracking || null,
+      remarks: new_tracking
+        ? `Shipped via ${new_courier || 'courier'}. Tracking: ${new_tracking}`
+        : `Status updated to ${new_status}`
     })
 
-    if (new_status === 'shipped') {
-      toast.success(`✅ Updated! Customer notified via SMS & Email`)
-    } else if (new_status === 'delivered') {
-      toast.success(`✅ Delivered! Customer notified`)
-    } else {
-      toast.success('Order status updated!')
+    try {
+      const notifyType = new_status === 'shipped' ? 'order_shipped'
+        : new_status === 'delivered' ? 'order_delivered'
+        : 'order_placed'
+
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: notifyType,
+          order: { ...selectedOrder, tracking_number: new_tracking, courier_name: new_courier },
+          phone: selectedOrder.phone,
+          email: selectedOrder.user_email || '',
+        })
+      })
+
+      if (new_status === 'shipped') {
+        toast.success(`✅ Updated! Customer notified via SMS & Email`)
+      } else if (new_status === 'delivered') {
+        toast.success(`✅ Delivered! Customer notified`)
+      } else {
+        toast.success('Order status updated!')
+      }
+    } catch (err) {
+      toast.success('Status updated! (Notification pending setup)')
     }
-  } catch (err) {
-    toast.success('Status updated! (Notification pending setup)')
+
+    setShowOrderModal(false)
+    fetchAll()
   }
 
-  setShowOrderModal(false)
-  fetchAll()
-}
-
-  // ===== CATEGORY FUNCTIONS =====
   const saveCategory = async () => {
-  if (!categoryForm.name) { toast.error('Enter name'); return }
-  const data = {
-    name: categoryForm.name,
-    slug: categoryForm.slug || slugify(categoryForm.name),
-    description: categoryForm.description,
-    image_url: categoryForm.image_url || null,
-  }
-  // Only include is_active if column exists
-  try {
-    data.is_active = categoryForm.is_active
-  } catch(e) {}
-
-  const { error } = editingCategory
-    ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
-    : await supabase.from('categories').insert(data)
-
-  if (error) {
-    // If is_active column error, retry without it
-    if (error.message.includes('is_active')) {
-      delete data.is_active
-      const { error: error2 } = editingCategory
-        ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
-        : await supabase.from('categories').insert(data)
-      if (error2) { toast.error(error2.message); return }
-    } else {
-      toast.error(error.message); return
+    if (!categoryForm.name) { toast.error('Enter name'); return }
+    const data = {
+      name: categoryForm.name,
+      slug: categoryForm.slug || slugify(categoryForm.name),
+      description: categoryForm.description,
+      image_url: categoryForm.image_url || null,
     }
+    try { data.is_active = categoryForm.is_active } catch(e) {}
+
+    const { error } = editingCategory
+      ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
+      : await supabase.from('categories').insert(data)
+
+    if (error) {
+      if (error.message.includes('is_active')) {
+        delete data.is_active
+        const { error: error2 } = editingCategory
+          ? await supabase.from('categories').update(data).eq('id', editingCategory.id)
+          : await supabase.from('categories').insert(data)
+        if (error2) { toast.error(error2.message); return }
+      } else {
+        toast.error(error.message); return
+      }
+    }
+    toast.success('Saved!')
+    setShowCategoryModal(false)
+    setEditingCategory(null)
+    setCategoryForm({ name:'', slug:'', description:'', image_url:'', is_active:true })
+    fetchAll()
   }
-  toast.success('Saved!')
-  setShowCategoryModal(false)
-  setEditingCategory(null)
-  setCategoryForm({ name:'', slug:'', description:'', image_url:'', is_active:true })
-  fetchAll()
-}
 
-  // ===== BANNER FUNCTIONS =====
   const saveBanner = async () => {
-  if (!bannerForm.title) { toast.error('Enter title'); return }
-
-  // Strip UI-only fields before saving to DB
-  const { _bannerImgMode, _bannerUploading, _imgMode, _uploading, ...cleanForm } = bannerForm
-
-  const { error } = editingBanner
-    ? await supabase.from('hero_banners').update(cleanForm).eq('id', editingBanner.id)
-    : await supabase.from('hero_banners').insert(cleanForm)
+    if (!bannerForm.title) { toast.error('Enter title'); return }
+    const { _bannerImgMode, _bannerUploading, _imgMode, _uploading, ...cleanForm } = bannerForm
+    const { error } = editingBanner
+      ? await supabase.from('hero_banners').update(cleanForm).eq('id', editingBanner.id)
+      : await supabase.from('hero_banners').insert(cleanForm)
     if (error) { toast.error(error.message); return }
     toast.success('Banner saved!')
     setShowBannerModal(false); setEditingBanner(null); setBannerForm({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true }); fetchAll()
@@ -252,17 +236,17 @@ if (rv.data) setAllReviews(rv.data)
   }
 
   const tabs = [
-  { id:'dashboard', label:'Dashboard', icon:'📊' },
-  { id:'products', label:'Products', icon:'📦' },
-  { id:'orders', label:'Orders', icon:'🛒' },
-  { id:'categories', label:'Categories', icon:'🏷️' },
-  { id:'banners', label:'Hero Banners', icon:'🖼️' },
-  { id:'trust', label:'Trust Strip', icon:'🛡️' },
-  { id:'reviews', label:'Reviews', icon:'⭐' },
-  { id:'social', label:'Social Links', icon:'🔗' },
-  { id:'settings', label:'Site Settings', icon:'⚙️' },
-  { id:'reports', label:'Reports', icon:'📈' },
-]
+    { id:'dashboard', label:'Dashboard', icon:'📊' },
+    { id:'products', label:'Products', icon:'📦' },
+    { id:'orders', label:'Orders', icon:'🛒' },
+    { id:'categories', label:'Categories', icon:'🏷️' },
+    { id:'banners', label:'Hero Banners', icon:'🖼️' },
+    { id:'trust', label:'Trust Strip', icon:'🛡️' },
+    { id:'reviews', label:'Reviews', icon:'⭐' },
+    { id:'social', label:'Social Links', icon:'🔗' },
+    { id:'settings', label:'Site Settings', icon:'⚙️' },
+    { id:'reports', label:'Reports', icon:'📈' },
+  ]
 
   if (!authChecked) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -270,7 +254,6 @@ if (rv.data) setAllReviews(rv.data)
     </div>
   )
 
-  // ===== REPORTS DATA =====
   const filteredOrders = orders.filter(o => {
     if (reportFilter.status !== 'all' && o.status !== reportFilter.status) return false
     if (reportFilter.from && new Date(o.created_at) < new Date(reportFilter.from)) return false
@@ -318,7 +301,7 @@ if (rv.data) setAllReviews(rv.data)
               <h2 style={{ fontSize:'22px', fontWeight:'800', marginBottom:'20px' }}>Dashboard</h2>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'16px', marginBottom:'24px' }}>
                 {[
-                  { label:'Net Revenue', value:`₹${stats.revenue.toLocaleString()}`, icon:'💰', note:'Excludes cancelled', color:'#e8f5e9' },
+                  { label:'Net Revenue', value:formatINR(stats.revenue), icon:'💰', note:'Excludes cancelled', color:'#e8f5e9' },
                   { label:'Total Orders', value:stats.orders, icon:'📦', note:`${stats.cancelled} cancelled`, color:'#e3f2fd' },
                   { label:'Products', value:stats.products, icon:'🛍️', note:'Active listings', color:'#fff3e0' },
                   { label:'Categories', value:categories.length, icon:'🏷️', note:'Product categories', color:'#fce4ec' },
@@ -347,7 +330,7 @@ if (rv.data) setAllReviews(rv.data)
                       <tr key={o.id} style={{ borderBottom:'1px solid #f5f5f5', cursor:'pointer' }} onClick={() => openOrder(o)}>
                         <td style={{ padding:'12px', fontWeight:'700', fontSize:'13px', color:'#e53935' }}>#{o.order_number}</td>
                         <td style={{ padding:'12px', fontSize:'13px' }}>{o.full_name}</td>
-                        <td style={{ padding:'12px', fontWeight:'700' }}>₹{o.final_amount}</td>
+                        <td style={{ padding:'12px', fontWeight:'700' }}>{formatINR(o.final_amount)}</td>
                         <td style={{ padding:'12px', fontSize:'12px', textTransform:'uppercase' }}>{o.payment_method}</td>
                         <td style={{ padding:'12px' }}>
                           <span style={{ background:`${getStatusColor(o.status)}18`, color:getStatusColor(o.status), padding:'3px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'700', textTransform:'capitalize' }}>{o.status}</span>
@@ -397,8 +380,8 @@ if (rv.data) setAllReviews(rv.data)
                                 : <div style={{ width:'44px', height:'44px', background:'#f5f5f5', borderRadius:'6px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' }}>🛍️</div>}
                             </td>
                             <td style={{ padding:'12px 14px', fontSize:'12px', color:'#666' }}>{p.categories?.name}</td>
-                            <td style={{ padding:'12px 14px', fontSize:'12px', color:'#999', textDecoration:'line-through' }}>₹{p.mrp}</td>
-                            <td style={{ padding:'12px 14px', fontSize:'14px', fontWeight:'700', color:'#e53935' }}>₹{p.sale_price}</td>
+                            <td style={{ padding:'12px 14px', fontSize:'12px', color:'#999', textDecoration:'line-through' }}>{formatINR(p.mrp)}</td>
+                            <td style={{ padding:'12px 14px', fontSize:'14px', fontWeight:'700', color:'#e53935' }}>{formatINR(p.sale_price)}</td>
                             <td style={{ padding:'12px 14px' }}><span style={{ background:'#ffebee', color:'#e53935', padding:'2px 6px', borderRadius:'4px', fontSize:'11px', fontWeight:'700' }}>{disc}%</span></td>
                             <td style={{ padding:'12px 14px', fontSize:'13px', fontWeight: p.stock < 10 ? '700' : '400', color: p.stock < 10 ? '#e53935' : '#333' }}>{p.stock}</td>
                             <td style={{ padding:'12px 14px' }}>
@@ -442,7 +425,7 @@ if (rv.data) setAllReviews(rv.data)
                           <td style={{ padding:'12px 14px', fontSize:'13px' }}>{o.full_name}</td>
                           <td style={{ padding:'12px 14px', fontSize:'12px', color:'#666' }}>{o.phone}</td>
                           <td style={{ padding:'12px 14px', fontSize:'12px', color:'#666' }}>{o.city}</td>
-                          <td style={{ padding:'12px 14px', fontWeight:'700', color:'#e53935' }}>₹{o.final_amount}</td>
+                          <td style={{ padding:'12px 14px', fontWeight:'700', color:'#e53935' }}>{formatINR(o.final_amount)}</td>
                           <td style={{ padding:'12px 14px', fontSize:'11px', textTransform:'uppercase', fontWeight:'600' }}>{o.payment_method}</td>
                           <td style={{ padding:'12px 14px', fontSize:'11px' }}>
                             {o.tracking_number ? <span style={{ background:'#e3f2fd', color:'#1565c0', padding:'2px 8px', borderRadius:'4px', fontWeight:'700', fontSize:'11px' }}>{o.tracking_number}</span> : <span style={{ color:'#ccc' }}>—</span>}
@@ -519,7 +502,6 @@ if (rv.data) setAllReviews(rv.data)
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'16px' }}>
                 {heroBanners.map(b => (
                   <div key={b.id} style={{ borderRadius:'16px', overflow:'hidden', border:'1px solid #f0f0f0' }}>
-                    {/* Banner Preview */}
                     <div style={{ background:b.bg_gradient, padding:'24px', position:'relative', minHeight:'120px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                         <div>
@@ -535,7 +517,6 @@ if (rv.data) setAllReviews(rv.data)
                         </span>
                       </div>
                     </div>
-                    {/* Controls */}
                     <div style={{ background:'white', padding:'12px', display:'flex', gap:'8px' }}>
                       <button onClick={() => { setEditingBanner(b); setBannerForm({ title:b.title, subtitle:b.subtitle||'', description:b.description||'', badge_text:b.badge_text||'', cta_text:b.cta_text, cta_link:b.cta_link, bg_gradient:b.bg_gradient, text_color:b.text_color||'#ffffff', button_color:b.button_color||'#ffffff', button_text_color:b.button_text_color||'#e53935', emoji:b.emoji||'⚡', sort_order:b.sort_order, is_active:b.is_active }); setShowBannerModal(true) }}
                         style={{ flex:1, background:'#e3f2fd', color:'#1565c0', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer' }}>✏️ Edit</button>
@@ -599,129 +580,126 @@ if (rv.data) setAllReviews(rv.data)
           )}
 
           {/* ===== TRUST STRIP ===== */}
-{tab === 'trust' && (
-  <div>
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
-      <div>
-        <h2 style={{ fontSize:'22px', fontWeight:'800' }}>Trust Strip</h2>
-        <p style={{ color:'#999', fontSize:'13px', marginTop:'4px' }}>Manage the feature badges shown below the hero banner</p>
-      </div>
-      <button onClick={async () => {
-        const { error } = await supabase.from('trust_strips').insert({ title:'New Feature', subtitle:'Description', icon_svg:'star', sort_order: trustStrips.length + 1 })
-        if (!error) { toast.success('Added!'); fetchAll() } else toast.error(error.message)
-      }} style={{ background:'#e53935', color:'white', border:'none', padding:'10px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px' }}>
-        <Plus size={16} /> Add Block
-      </button>
-    </div>
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
-      {trustStrips.map(strip => (
-        <div key={strip.id} style={{ background:'white', borderRadius:'12px', padding:'20px', border:'1px solid #f0f0f0' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'12px' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-              <div style={{ width:'40px', height:'40px', background: strip.bg_color || '#fff5f5', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' }}>
-                🛡️
-              </div>
-              <div>
-                <div style={{ fontWeight:'700', fontSize:'15px' }}>{strip.title}</div>
-                <div style={{ fontSize:'12px', color:'#999' }}>{strip.subtitle}</div>
-              </div>
-            </div>
-            <button onClick={async () => { await supabase.from('trust_strips').update({ is_active: !strip.is_active }).eq('id', strip.id); fetchAll() }}
-              style={{ background: strip.is_active ? '#e8f5e9' : '#ffebee', color: strip.is_active ? '#2e7d32' : '#e53935', border:'none', padding:'3px 8px', borderRadius:'5px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>
-              {strip.is_active ? 'Active' : 'Hidden'}
-            </button>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+          {tab === 'trust' && (
             <div>
-              <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>TITLE</label>
-              <input id={`ts-title-${strip.id}`} defaultValue={strip.title} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
-            </div>
-            <div>
-              <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>SUBTITLE</label>
-              <input id={`ts-sub-${strip.id}`} defaultValue={strip.subtitle || ''} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-              <div>
-                <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ICON COLOR</label>
-                <div style={{ display:'flex', gap:'6px' }}>
-                  <input type="color" id={`ts-color-${strip.id}`} defaultValue={strip.icon_color || '#e53935'} style={{ width:'36px', height:'34px', border:'1px solid #e0e0e0', borderRadius:'6px', cursor:'pointer', padding:'2px' }} />
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+                <div>
+                  <h2 style={{ fontSize:'22px', fontWeight:'800' }}>Trust Strip</h2>
+                  <p style={{ color:'#999', fontSize:'13px', marginTop:'4px' }}>Manage the feature badges shown below the hero banner</p>
                 </div>
+                <button onClick={async () => {
+                  const { error } = await supabase.from('trust_strips').insert({ title:'New Feature', subtitle:'Description', icon_svg:'star', sort_order: trustStrips.length + 1 })
+                  if (!error) { toast.success('Added!'); fetchAll() } else toast.error(error.message)
+                }} style={{ background:'#e53935', color:'white', border:'none', padding:'10px 20px', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px' }}>
+                  <Plus size={16} /> Add Block
+                </button>
               </div>
-              <div>
-                <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ORDER</label>
-                <input type="number" id={`ts-order-${strip.id}`} defaultValue={strip.sort_order} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
+                {trustStrips.map(strip => (
+                  <div key={strip.id} style={{ background:'white', borderRadius:'12px', padding:'20px', border:'1px solid #f0f0f0' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'12px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                        <div style={{ width:'40px', height:'40px', background: strip.bg_color || '#fff5f5', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px' }}>🛡️</div>
+                        <div>
+                          <div style={{ fontWeight:'700', fontSize:'15px' }}>{strip.title}</div>
+                          <div style={{ fontSize:'12px', color:'#999' }}>{strip.subtitle}</div>
+                        </div>
+                      </div>
+                      <button onClick={async () => { await supabase.from('trust_strips').update({ is_active: !strip.is_active }).eq('id', strip.id); fetchAll() }}
+                        style={{ background: strip.is_active ? '#e8f5e9' : '#ffebee', color: strip.is_active ? '#2e7d32' : '#e53935', border:'none', padding:'3px 8px', borderRadius:'5px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>
+                        {strip.is_active ? 'Active' : 'Hidden'}
+                      </button>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                      <div>
+                        <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>TITLE</label>
+                        <input id={`ts-title-${strip.id}`} defaultValue={strip.title} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>SUBTITLE</label>
+                        <input id={`ts-sub-${strip.id}`} defaultValue={strip.subtitle || ''} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                        <div>
+                          <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ICON COLOR</label>
+                          <div style={{ display:'flex', gap:'6px' }}>
+                            <input type="color" id={`ts-color-${strip.id}`} defaultValue={strip.icon_color || '#e53935'} style={{ width:'36px', height:'34px', border:'1px solid #e0e0e0', borderRadius:'6px', cursor:'pointer', padding:'2px' }} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ fontSize:'11px', color:'#999', fontWeight:'600', display:'block', marginBottom:'3px' }}>ORDER</label>
+                          <input type="number" id={`ts-order-${strip.id}`} defaultValue={strip.sort_order} style={{ ...inp, fontSize:'13px', padding:'8px 10px' }} />
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:'8px' }}>
+                        <button onClick={async () => {
+                          await supabase.from('trust_strips').update({
+                            title: document.getElementById(`ts-title-${strip.id}`).value,
+                            subtitle: document.getElementById(`ts-sub-${strip.id}`).value,
+                            icon_color: document.getElementById(`ts-color-${strip.id}`).value,
+                            sort_order: parseInt(document.getElementById(`ts-order-${strip.id}`).value) || 0
+                          }).eq('id', strip.id)
+                          toast.success('Saved!'); fetchAll()
+                        }} style={{ flex:1, background:'#e53935', color:'white', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer' }}>💾 Save</button>
+                        <button onClick={async () => { if (!confirm('Delete?')) return; await supabase.from('trust_strips').delete().eq('id', strip.id); fetchAll() }}
+                          style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'13px' }}>🗑️</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <div style={{ display:'flex', gap:'8px' }}>
-              <button onClick={async () => {
-                await supabase.from('trust_strips').update({
-                  title: document.getElementById(`ts-title-${strip.id}`).value,
-                  subtitle: document.getElementById(`ts-sub-${strip.id}`).value,
-                  icon_color: document.getElementById(`ts-color-${strip.id}`).value,
-                  sort_order: parseInt(document.getElementById(`ts-order-${strip.id}`).value) || 0
-                }).eq('id', strip.id)
-                toast.success('Saved!'); fetchAll()
-              }} style={{ flex:1, background:'#e53935', color:'white', border:'none', padding:'8px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer' }}>💾 Save</button>
-              <button onClick={async () => { if (!confirm('Delete?')) return; await supabase.from('trust_strips').delete().eq('id', strip.id); fetchAll() }}
-                style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'13px' }}>🗑️</button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+          )}
 
-{/* ===== REVIEWS MODERATION ===== */}
-{tab === 'reviews' && (
-  <div>
-    <h2 style={{ fontSize:'22px', fontWeight:'800', marginBottom:'20px' }}>Reviews Moderation ({allReviews.length})</h2>
-    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #f0f0f0', overflow:'hidden' }}>
-      {allReviews.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'48px', color:'#999' }}>No reviews yet</div>
-      ) : allReviews.map(review => (
-        <div key={review.id} style={{ padding:'16px 20px', borderBottom:'1px solid #f5f5f5', display:'flex', gap:'16px', alignItems:'flex-start' }}>
-          <div style={{ flex:1 }}>
-            <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'6px' }}>
-              <span style={{ fontWeight:'700', fontSize:'14px' }}>{review.user_name || review.profiles?.full_name || 'Customer'}</span>
-              <div style={{ display:'flex', gap:'2px' }}>
-                {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= review.rating ? '#ff6f00' : '#ddd', fontSize:'14px' }}>★</span>)}
+          {/* ===== REVIEWS MODERATION ===== */}
+          {tab === 'reviews' && (
+            <div>
+              <h2 style={{ fontSize:'22px', fontWeight:'800', marginBottom:'20px' }}>Reviews Moderation ({allReviews.length})</h2>
+              <div style={{ background:'white', borderRadius:'12px', border:'1px solid #f0f0f0', overflow:'hidden' }}>
+                {allReviews.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'48px', color:'#999' }}>No reviews yet</div>
+                ) : allReviews.map(review => (
+                  <div key={review.id} style={{ padding:'16px 20px', borderBottom:'1px solid #f5f5f5', display:'flex', gap:'16px', alignItems:'flex-start' }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'6px' }}>
+                        <span style={{ fontWeight:'700', fontSize:'14px' }}>{review.user_name || review.profiles?.full_name || 'Customer'}</span>
+                        <div style={{ display:'flex', gap:'2px' }}>
+                          {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= review.rating ? '#ff6f00' : '#ddd', fontSize:'14px' }}>★</span>)}
+                        </div>
+                        <span style={{ background: review.is_approved ? '#e8f5e9' : review.is_hidden ? '#ffebee' : '#fff3e0', color: review.is_approved ? '#2e7d32' : review.is_hidden ? '#e53935' : '#e65100', padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:'700' }}>
+                          {review.is_approved ? 'Approved' : review.is_hidden ? 'Hidden' : 'Pending'}
+                        </span>
+                        <span style={{ fontSize:'11px', color:'#999' }}>{new Date(review.created_at).toLocaleDateString('en-IN')}</span>
+                      </div>
+                      <p style={{ color:'#555', fontSize:'13px', lineHeight:'1.6' }}>{review.comment}</p>
+                    </div>
+                    <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
+                      {!review.is_approved && !review.is_hidden && (
+                        <button onClick={async () => { await supabase.from('reviews').update({ is_approved: true }).eq('id', review.id); fetchAll() }}
+                          style={{ background:'#e8f5e9', color:'#2e7d32', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>✅ Approve</button>
+                      )}
+                      {review.is_approved && (
+                        <button onClick={async () => { await supabase.from('reviews').update({ is_approved: false }).eq('id', review.id); fetchAll() }}
+                          style={{ background:'#fff3e0', color:'#e65100', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>↩️ Unapprove</button>
+                      )}
+                      <button onClick={async () => { await supabase.from('reviews').update({ is_hidden: !review.is_hidden, is_approved: false }).eq('id', review.id); fetchAll() }}
+                        style={{ background: review.is_hidden ? '#e8f5e9' : '#ffebee', color: review.is_hidden ? '#2e7d32' : '#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+                        {review.is_hidden ? '👁️ Show' : '🚫 Hide'}
+                      </button>
+                      <button onClick={async () => { if (!confirm('Delete review?')) return; await supabase.from('reviews').delete().eq('id', review.id); fetchAll() }}
+                        style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 10px', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>🗑️</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <span style={{ background: review.is_approved ? '#e8f5e9' : review.is_hidden ? '#ffebee' : '#fff3e0', color: review.is_approved ? '#2e7d32' : review.is_hidden ? '#e53935' : '#e65100', padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:'700' }}>
-                {review.is_approved ? 'Approved' : review.is_hidden ? 'Hidden' : 'Pending'}
-              </span>
-              <span style={{ fontSize:'11px', color:'#999' }}>{new Date(review.created_at).toLocaleDateString('en-IN')}</span>
             </div>
-            <p style={{ color:'#555', fontSize:'13px', lineHeight:'1.6' }}>{review.comment}</p>
-          </div>
-          <div style={{ display:'flex', gap:'6px', flexShrink:0 }}>
-            {!review.is_approved && !review.is_hidden && (
-              <button onClick={async () => { await supabase.from('reviews').update({ is_approved: true }).eq('id', review.id); fetchAll() }}
-                style={{ background:'#e8f5e9', color:'#2e7d32', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>✅ Approve</button>
-            )}
-            {review.is_approved && (
-              <button onClick={async () => { await supabase.from('reviews').update({ is_approved: false }).eq('id', review.id); fetchAll() }}
-                style={{ background:'#fff3e0', color:'#e65100', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>↩️ Unapprove</button>
-            )}
-            <button onClick={async () => { await supabase.from('reviews').update({ is_hidden: !review.is_hidden, is_approved: false }).eq('id', review.id); fetchAll() }}
-              style={{ background: review.is_hidden ? '#e8f5e9' : '#ffebee', color: review.is_hidden ? '#2e7d32' : '#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
-              {review.is_hidden ? '👁️ Show' : '🚫 Hide'}
-            </button>
-            <button onClick={async () => { if (!confirm('Delete review?')) return; await supabase.from('reviews').delete().eq('id', review.id); fetchAll() }}
-              style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 10px', borderRadius:'6px', fontSize:'12px', cursor:'pointer' }}>🗑️</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+          )}
 
           {/* ===== REPORTS ===== */}
           {tab === 'reports' && (
             <div>
               <h2 style={{ fontSize:'22px', fontWeight:'800', marginBottom:'20px' }}>Reports & Analytics</h2>
 
-              {/* Filters */}
               <div style={{ background:'white', borderRadius:'12px', padding:'20px', border:'1px solid #f0f0f0', marginBottom:'20px' }}>
                 <div style={{ fontWeight:'700', fontSize:'14px', marginBottom:'12px' }}>🔍 Filters</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'12px', alignItems:'end' }}>
@@ -755,7 +733,7 @@ if (rv.data) setAllReviews(rv.data)
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'14px', marginBottom:'20px' }}>
                 {[
                   { label:'Filtered Orders', value:filteredOrders.length, color:'#1565c0' },
-                  { label:'Total Revenue', value:`₹${filteredOrders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.final_amount||0),0).toLocaleString()}`, color:'#2e7d32' },
+                  { label:'Total Revenue', value:formatINR(filteredOrders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.final_amount||0),0)), color:'#2e7d32' },
                   { label:'Cancelled', value:filteredOrders.filter(o=>o.status==='cancelled').length, color:'#c62828' },
                   { label:'Delivered', value:filteredOrders.filter(o=>o.status==='delivered').length, color:'#2e7d32' },
                   { label:'Shipped', value:filteredOrders.filter(o=>o.status==='shipped').length, color:'#0288d1' },
@@ -786,7 +764,7 @@ if (rv.data) setAllReviews(rv.data)
                           <td style={{ padding:'10px 14px', fontWeight:'700', fontSize:'12px', color:'#e53935' }}>#{o.order_number}</td>
                           <td style={{ padding:'10px 14px', fontSize:'13px' }}>{o.full_name}</td>
                           <td style={{ padding:'10px 14px', fontSize:'12px', color:'#666' }}>{o.city}</td>
-                          <td style={{ padding:'10px 14px', fontWeight:'700' }}>₹{o.final_amount}</td>
+                          <td style={{ padding:'10px 14px', fontWeight:'700' }}>{formatINR(o.final_amount)}</td>
                           <td style={{ padding:'10px 14px', fontSize:'11px', textTransform:'uppercase' }}>{o.payment_method}</td>
                           <td style={{ padding:'10px 14px' }}>
                             <span style={{ background:`${getStatusColor(o.status)}18`, color:getStatusColor(o.status), padding:'3px 8px', borderRadius:'20px', fontSize:'11px', fontWeight:'700', textTransform:'capitalize' }}>{o.status}</span>
@@ -816,7 +794,6 @@ if (rv.data) setAllReviews(rv.data)
               <button onClick={() => setShowOrderModal(false)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={24} /></button>
             </div>
 
-            {/* Customer Info */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'20px' }}>
               <div style={{ background:'#f8f8f8', borderRadius:'10px', padding:'14px' }}>
                 <div style={{ fontWeight:'700', fontSize:'13px', marginBottom:'8px', color:'#555' }}>👤 CUSTOMER</div>
@@ -832,7 +809,6 @@ if (rv.data) setAllReviews(rv.data)
               </div>
             </div>
 
-            {/* Order Status Update */}
             <div style={{ background:'#fff5f5', border:'1px solid #ffcdd2', borderRadius:'10px', padding:'16px', marginBottom:'20px' }}>
               <div style={{ fontWeight:'700', fontSize:'14px', marginBottom:'12px', color:'#e53935' }}>🔄 Update Order Status</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px' }}>
@@ -854,7 +830,6 @@ if (rv.data) setAllReviews(rv.data)
                 </div>
               </div>
 
-              {/* Tracking Number — shows when status is shipped */}
               {(selectedOrder.new_status === 'shipped' || selectedOrder.new_status === 'out_for_delivery') && (
                 <div style={{ marginBottom:'12px' }}>
                   <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>
@@ -876,7 +851,6 @@ if (rv.data) setAllReviews(rv.data)
               </button>
             </div>
 
-            {/* Order Timeline */}
             <div style={{ marginBottom:'20px' }}>
               <div style={{ fontWeight:'700', fontSize:'14px', marginBottom:'12px' }}>📋 Order Timeline</div>
               {orderHistory.length === 0 ? (
@@ -913,18 +887,21 @@ if (rv.data) setAllReviews(rv.data)
             <div style={{ background:'#f8f8f8', borderRadius:'10px', padding:'14px' }}>
               <div style={{ fontWeight:'700', fontSize:'13px', marginBottom:'10px', color:'#555' }}>💰 PAYMENT SUMMARY</div>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px', fontSize:'13px' }}>
-                <span style={{ color:'#666' }}>Subtotal</span><span>₹{selectedOrder.subtotal}</span>
+                <span style={{ color:'#666' }}>Subtotal</span><span>{formatINR(selectedOrder.subtotal)}</span>
               </div>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px', fontSize:'13px' }}>
-                <span style={{ color:'#666' }}>Shipping</span><span style={{ color: selectedOrder.shipping_amount === 0 ? '#2e7d32' : '#333' }}>{selectedOrder.shipping_amount === 0 ? 'FREE' : `₹${selectedOrder.shipping_amount}`}</span>
+                <span style={{ color:'#666' }}>Shipping</span>
+                <span style={{ color: selectedOrder.shipping_amount === 0 ? '#2e7d32' : '#333' }}>
+                  {selectedOrder.shipping_amount === 0 ? 'FREE' : formatINR(selectedOrder.shipping_amount)}
+                </span>
               </div>
               {selectedOrder.discount_amount > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px', fontSize:'13px' }}>
-                  <span style={{ color:'#666' }}>Discount</span><span style={{ color:'#2e7d32' }}>-₹{selectedOrder.discount_amount}</span>
+                  <span style={{ color:'#666' }}>Discount</span><span style={{ color:'#2e7d32' }}>-{formatINR(selectedOrder.discount_amount)}</span>
                 </div>
               )}
               <div style={{ display:'flex', justifyContent:'space-between', fontWeight:'800', fontSize:'16px', marginTop:'8px', paddingTop:'8px', borderTop:'1px solid #e0e0e0' }}>
-                <span>Total</span><span style={{ color:'#e53935' }}>₹{selectedOrder.final_amount}</span>
+                <span>Total</span><span style={{ color:'#e53935' }}>{formatINR(selectedOrder.final_amount)}</span>
               </div>
               <div style={{ fontSize:'12px', color:'#666', marginTop:'8px' }}>
                 Payment: <strong>{selectedOrder.payment_method?.toUpperCase()}</strong> | Status: <strong style={{ color: selectedOrder.payment_status === 'paid' ? '#2e7d32' : '#e65100' }}>{selectedOrder.payment_status}</strong>
@@ -971,7 +948,7 @@ if (rv.data) setAllReviews(rv.data)
               </div>
               {productForm.mrp && productForm.sale_price && +productForm.mrp > 0 && (
                 <div style={{ background:'#fff5f5', border:'1px solid #ffcdd2', borderRadius:'8px', padding:'10px 14px', fontSize:'13px', color:'#e53935', fontWeight:'600' }}>
-                  💡 {Math.round(((+productForm.mrp - +productForm.sale_price) / +productForm.mrp) * 100)}% OFF — Save ₹{Math.max(0, +productForm.mrp - +productForm.sale_price).toFixed(0)}
+                  💡 {Math.round(((+productForm.mrp - +productForm.sale_price) / +productForm.mrp) * 100)}% OFF — Save {formatINR(Math.max(0, +productForm.mrp - +productForm.sale_price))}
                 </div>
               )}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
@@ -988,16 +965,15 @@ if (rv.data) setAllReviews(rv.data)
                     onFocus={e => e.target.style.borderColor='#e53935'} onBlur={e => e.target.style.borderColor='#e0e0e0'} />
                 </div>
               </div>
-              {/* Return Policy */}
-<div>
-  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>↩️ Return Policy</label>
-  <select name="return_policy" value={productForm.return_policy || '7_days'} onChange={handleProductChange} style={{ ...inp, cursor:'pointer' }}>
-    <option value="no_return">❌ No Return</option>
-    <option value="7_days">7 Days Return</option>
-    <option value="10_days">10 Days Return</option>
-    <option value="30_days">30 Days Return</option>
-  </select>
-</div>
+              <div>
+                <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>↩️ Return Policy</label>
+                <select name="return_policy" value={productForm.return_policy || '7_days'} onChange={handleProductChange} style={{ ...inp, cursor:'pointer' }}>
+                  <option value="no_return">❌ No Return</option>
+                  <option value="7_days">7 Days Return</option>
+                  <option value="10_days">10 Days Return</option>
+                  <option value="30_days">30 Days Return</option>
+                </select>
+              </div>
               <div style={{ background:'#f8f8f8', borderRadius:'10px', padding:'14px' }}>
                 <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>⏰ Discount Timer</label>
                 <select name="discount_timer_hours" value={productForm.discount_timer_hours} onChange={handleProductChange} style={{ ...inp, background:'white', cursor:'pointer' }}>
@@ -1044,164 +1020,90 @@ if (rv.data) setAllReviews(rv.data)
                 <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'5px' }}>Description</label>
                 <textarea value={categoryForm.description} onChange={e => setCategoryForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inp, resize:'vertical' }} />
               </div>
-              
- {/* Category Image — URL or direct upload */}
-<div>
-  <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>
-    Category Image
-  </label>
 
-  {/* Tab toggle — URL vs Upload */}
-  <div style={{ display:'flex', background:'#f5f5f5', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
-    {['url', 'upload'].map(mode => (
-      <button key={mode} type="button"
-        onClick={() => setCategoryForm(f => ({ ...f, _imgMode: mode }))}
-        style={{
-          padding:'6px 16px', border:'none', cursor:'pointer',
-          borderRadius:'6px', fontSize:'12px', fontWeight:'700',
-          background: (categoryForm._imgMode || 'url') === mode ? 'white' : 'transparent',
-          color: (categoryForm._imgMode || 'url') === mode ? '#e53935' : '#999',
-          boxShadow: (categoryForm._imgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-          transition:'all 0.2s'
-        }}>
-        {mode === 'url' ? '🔗 Paste URL' : '📁 Upload File'}
-      </button>
-    ))}
-  </div>
+              <div>
+                <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>Category Image</label>
+                <div style={{ display:'flex', background:'#f5f5f5', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
+                  {['url', 'upload'].map(mode => (
+                    <button key={mode} type="button"
+                      onClick={() => setCategoryForm(f => ({ ...f, _imgMode: mode }))}
+                      style={{ padding:'6px 16px', border:'none', cursor:'pointer', borderRadius:'6px', fontSize:'12px', fontWeight:'700', background: (categoryForm._imgMode || 'url') === mode ? 'white' : 'transparent', color: (categoryForm._imgMode || 'url') === mode ? '#e53935' : '#999', boxShadow: (categoryForm._imgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none', transition:'all 0.2s' }}>
+                      {mode === 'url' ? '🔗 Paste URL' : '📁 Upload File'}
+                    </button>
+                  ))}
+                </div>
 
-  {/* URL Input */}
-  {(categoryForm._imgMode || 'url') === 'url' && (
-    <input
-      value={categoryForm.image_url || ''}
-      onChange={e => setCategoryForm(f => ({ ...f, image_url: e.target.value }))}
-      placeholder="https://example.com/category-image.jpg"
-      style={inp}
-      onFocus={e => e.target.style.borderColor='#e53935'}
-      onBlur={e => e.target.style.borderColor='#e0e0e0'}
-    />
-  )}
+                {(categoryForm._imgMode || 'url') === 'url' && (
+                  <input value={categoryForm.image_url || ''} onChange={e => setCategoryForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://example.com/category-image.jpg" style={inp}
+                    onFocus={e => e.target.style.borderColor='#e53935'} onBlur={e => e.target.style.borderColor='#e0e0e0'} />
+                )}
 
-  {/* File Upload */}
-  {(categoryForm._imgMode || 'url') === 'upload' && (
-    <div>
-      <input
-        type="file"
-        id="catImageFile"
-        accept="image/jpeg,image/png,image/webp"
-        style={{ display:'none' }}
-        onChange={async (e) => {
-          const file = e.target.files[0]
-          if (!file) return
-          if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return }
+                {(categoryForm._imgMode || 'url') === 'upload' && (
+                  <div>
+                    <input type="file" id="catImageFile" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return }
+                        setCategoryForm(f => ({ ...f, _uploading: true }))
+                        try {
+                          const fileName = `categories/${Date.now()}-${file.name.replace(/\s/g, '-')}`
+                          const { data, error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false })
+                          if (!error && data) {
+                            const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
+                            setCategoryForm(f => ({ ...f, image_url: urlData.publicUrl, _uploading: false }))
+                            toast.success('✅ Image uploaded!')
+                          } else {
+                            const reader = new FileReader()
+                            reader.onload = (ev) => { setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false })); toast.success('✅ Image loaded!') }
+                            reader.readAsDataURL(file)
+                          }
+                        } catch (err) {
+                          const reader = new FileReader()
+                          reader.onload = (ev) => { setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false })); toast.success('✅ Image loaded!') }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                    />
+                    {categoryForm._uploading ? (
+                      <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'32px', textAlign:'center', background:'#fff5f5' }}>
+                        <div style={{ fontSize:'24px', marginBottom:'8px' }}>⏳</div>
+                        <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600' }}>Uploading image...</div>
+                      </div>
+                    ) : (
+                      <div onClick={() => document.getElementById('catImageFile').click()}
+                        style={{ border:'2px dashed #e0e0e0', borderRadius:'10px', padding:'28px', textAlign:'center', cursor:'pointer', background:'#f8f8f8', transition:'all 0.2s' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
+                        onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+                        onDrop={e => {
+                          e.preventDefault(); e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8'
+                          const file = e.dataTransfer.files[0]
+                          if (file) { const input = document.getElementById('catImageFile'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })) }
+                        }}>
+                        <div style={{ fontSize:'32px', marginBottom:'8px' }}>📁</div>
+                        <div style={{ fontSize:'14px', fontWeight:'700', color:'#333', marginBottom:'4px' }}>Click to upload or drag & drop</div>
+                        <div style={{ fontSize:'11px', color:'#999' }}>JPG, PNG, WEBP — max 5MB</div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-          // Show uploading state
-          setCategoryForm(f => ({ ...f, _uploading: true }))
+                {categoryForm.image_url && !categoryForm._uploading && (
+                  <div style={{ marginTop:'10px', display:'flex', alignItems:'center', gap:'12px', background:'#f8f8f8', padding:'10px 14px', borderRadius:'10px', border:'1px solid #e0e0e0' }}>
+                    <img src={categoryForm.image_url} alt="preview" style={{ width:'60px', height:'60px', objectFit:'cover', borderRadius:'8px', border:'1px solid #e0e0e0', flexShrink:0 }} onError={e => { e.target.style.display='none' }} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:'12px', color:'#2e7d32', fontWeight:'700' }}>✅ Image ready</div>
+                      <div style={{ fontSize:'11px', color:'#999', marginTop:'2px', wordBreak:'break-all', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {categoryForm.image_url.startsWith('data:') ? 'Uploaded file (base64)' : categoryForm.image_url}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setCategoryForm(f => ({ ...f, image_url: '', _imgMode: 'url' }))}
+                      style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', cursor:'pointer', fontSize:'12px', fontWeight:'700', flexShrink:0 }}>✕ Remove</button>
+                  </div>
+                )}
+              </div>
 
-          try {
-            // Try Supabase Storage first
-            const fileName = `categories/${Date.now()}-${file.name.replace(/\s/g, '-')}`
-            const { data, error } = await supabase.storage
-              .from('product-images')
-              .upload(fileName, file, { cacheControl: '3600', upsert: false })
-
-            if (!error && data) {
-              const { data: urlData } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(data.path)
-              setCategoryForm(f => ({ ...f, image_url: urlData.publicUrl, _uploading: false }))
-              toast.success('✅ Image uploaded!')
-            } else {
-              // Fallback: convert to base64 for preview
-              const reader = new FileReader()
-              reader.onload = (ev) => {
-                setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false }))
-                toast.success('✅ Image loaded!')
-              }
-              reader.readAsDataURL(file)
-            }
-          } catch (err) {
-            // Fallback to base64
-            const reader = new FileReader()
-            reader.onload = (ev) => {
-              setCategoryForm(f => ({ ...f, image_url: ev.target.result, _uploading: false }))
-              toast.success('✅ Image loaded!')
-            }
-            reader.readAsDataURL(file)
-          }
-        }}
-      />
-
-      {categoryForm._uploading ? (
-        <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'32px', textAlign:'center', background:'#fff5f5' }}>
-          <div style={{ fontSize:'24px', marginBottom:'8px' }}>⏳</div>
-          <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600' }}>Uploading image...</div>
-        </div>
-      ) : (
-        <div
-          onClick={() => document.getElementById('catImageFile').click()}
-          style={{
-            border:'2px dashed #e0e0e0', borderRadius:'10px',
-            padding:'28px', textAlign:'center', cursor:'pointer',
-            background:'#f8f8f8', transition:'all 0.2s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
-          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
-          onDrop={e => {
-            e.preventDefault()
-            e.currentTarget.style.borderColor='#e0e0e0'
-            e.currentTarget.style.background='#f8f8f8'
-            const file = e.dataTransfer.files[0]
-            if (file) {
-              // Trigger same logic via file input
-              const input = document.getElementById('catImageFile')
-              const dt = new DataTransfer()
-              dt.items.add(file)
-              input.files = dt.files
-              input.dispatchEvent(new Event('change', { bubbles: true }))
-            }
-          }}
-        >
-          <div style={{ fontSize:'32px', marginBottom:'8px' }}>📁</div>
-          <div style={{ fontSize:'14px', fontWeight:'700', color:'#333', marginBottom:'4px' }}>
-            Click to upload or drag & drop
-          </div>
-          <div style={{ fontSize:'11px', color:'#999' }}>
-            JPG, PNG, WEBP — max 5MB
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-
-  {/* Preview — shown for both modes */}
-  {categoryForm.image_url && !categoryForm._uploading && (
-    <div style={{
-      marginTop:'10px', display:'flex', alignItems:'center',
-      gap:'12px', background:'#f8f8f8', padding:'10px 14px',
-      borderRadius:'10px', border:'1px solid #e0e0e0'
-    }}>
-      <img
-        src={categoryForm.image_url}
-        alt="preview"
-        style={{ width:'60px', height:'60px', objectFit:'cover', borderRadius:'8px', border:'1px solid #e0e0e0', flexShrink:0 }}
-        onError={e => { e.target.style.display='none' }}
-      />
-      <div style={{ flex:1 }}>
-        <div style={{ fontSize:'12px', color:'#2e7d32', fontWeight:'700' }}>✅ Image ready</div>
-        <div style={{ fontSize:'11px', color:'#999', marginTop:'2px', wordBreak:'break-all', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {categoryForm.image_url.startsWith('data:') ? 'Uploaded file (base64)' : categoryForm.image_url}
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => setCategoryForm(f => ({ ...f, image_url: '', _imgMode: 'url' }))}
-        style={{ background:'#ffebee', color:'#e53935', border:'none', padding:'6px 12px', borderRadius:'6px', cursor:'pointer', fontSize:'12px', fontWeight:'700', flexShrink:0 }}>
-        ✕ Remove
-      </button>
-    </div>
-  )}
-</div>
               <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', padding:'10px', background:'#f8f8f8', borderRadius:'8px' }}>
                 <input type="checkbox" checked={categoryForm.is_active} onChange={e => setCategoryForm(f => ({ ...f, is_active: e.target.checked }))} style={{ accentColor:'#e53935', width:'16px', height:'16px' }} />
                 <span style={{ fontSize:'13px', fontWeight:'600' }}>✅ Active (visible)</span>
@@ -1223,44 +1125,25 @@ if (rv.data) setAllReviews(rv.data)
               <button onClick={() => setShowBannerModal(false)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={24} /></button>
             </div>
 
-            {/* Live Preview */}
-<div style={{
-  borderRadius:'12px', padding:'24px', marginBottom:'20px',
-  color: bannerForm.text_color,
-  position:'relative', overflow:'hidden',
-  background: (bannerForm.bg_type || 'gradient') === 'image' && bannerForm.bg_image
-    ? `url(${bannerForm.bg_image}) center/cover no-repeat`
-    : (bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image
-    ? `url(${bannerForm.bg_image}) center/cover no-repeat`
-    : (bannerForm.bg_type || 'gradient') === 'none'
-    ? '#f8f8f8'
-    : bannerForm.bg_gradient,
-  minHeight:'140px'
-}}>
-  {/* Overlay layer for image_overlay mode */}
-  {(bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image && (
-    <div style={{
-      position:'absolute', inset:0,
-      background: bannerForm.bg_gradient,
-      opacity: (bannerForm.overlay_opacity || 50) / 100,
-      zIndex:0
-    }} />
-  )}
-  <div style={{ position:'relative', zIndex:1 }}>
-    {bannerForm.badge_text && <span style={{ background:'rgba(255,255,255,0.2)', padding:'3px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'700' }}>{bannerForm.badge_text}</span>}
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px' }}>
-      <div>
-        <div style={{ fontSize:'24px', fontWeight:'900' }}>{bannerForm.title || 'Banner Title'}</div>
-        <div style={{ fontSize:'16px', opacity:0.85 }}>{bannerForm.subtitle || 'Subtitle'}</div>
-        <div style={{ fontSize:'13px', opacity:0.75, marginTop:'4px' }}>{bannerForm.description}</div>
-      </div>
-      <span style={{ fontSize:'48px' }}>{bannerForm.emoji}</span>
-    </div>
-    <button style={{ background: bannerForm.button_color, color: bannerForm.button_text_color, border:'none', padding:'8px 20px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', marginTop:'12px', cursor:'default' }}>
-      {bannerForm.cta_text}
-    </button>
-  </div>
-</div>
+            <div style={{ borderRadius:'12px', padding:'24px', marginBottom:'20px', color: bannerForm.text_color, position:'relative', overflow:'hidden', background: (bannerForm.bg_type || 'gradient') === 'image' && bannerForm.bg_image ? `url(${bannerForm.bg_image}) center/cover no-repeat` : (bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image ? `url(${bannerForm.bg_image}) center/cover no-repeat` : (bannerForm.bg_type || 'gradient') === 'none' ? '#f8f8f8' : bannerForm.bg_gradient, minHeight:'140px' }}>
+              {(bannerForm.bg_type || 'gradient') === 'image_overlay' && bannerForm.bg_image && (
+                <div style={{ position:'absolute', inset:0, background: bannerForm.bg_gradient, opacity: (bannerForm.overlay_opacity || 50) / 100, zIndex:0 }} />
+              )}
+              <div style={{ position:'relative', zIndex:1 }}>
+                {bannerForm.badge_text && <span style={{ background:'rgba(255,255,255,0.2)', padding:'3px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'700' }}>{bannerForm.badge_text}</span>}
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px' }}>
+                  <div>
+                    <div style={{ fontSize:'24px', fontWeight:'900' }}>{bannerForm.title || 'Banner Title'}</div>
+                    <div style={{ fontSize:'16px', opacity:0.85 }}>{bannerForm.subtitle || 'Subtitle'}</div>
+                    <div style={{ fontSize:'13px', opacity:0.75, marginTop:'4px' }}>{bannerForm.description}</div>
+                  </div>
+                  <span style={{ fontSize:'48px' }}>{bannerForm.emoji}</span>
+                </div>
+                <button style={{ background: bannerForm.button_color, color: bannerForm.button_text_color, border:'none', padding:'8px 20px', borderRadius:'8px', fontSize:'13px', fontWeight:'700', marginTop:'12px', cursor:'default' }}>
+                  {bannerForm.cta_text}
+                </button>
+              </div>
+            </div>
 
             <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
@@ -1297,190 +1180,144 @@ if (rv.data) setAllReviews(rv.data)
                   <input value={bannerForm.cta_link} onChange={e => setBannerForm(f => ({ ...f, cta_link: e.target.value }))} placeholder="/collections/all" style={inp} />
                 </div>
               </div>
-             {/* ===== BACKGROUND TYPE SELECTOR ===== */}
-<div style={{ background:'#f8f8f8', borderRadius:'12px', padding:'16px' }}>
-  <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
-    🎨 Background Type
-  </label>
-  <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'8px', marginBottom:'14px' }}>
-    {[
-      { val:'gradient', label:'🎨 Color / Gradient', desc:'Solid color or gradient' },
-      { val:'image', label:'🖼️ Image Only', desc:'Full banner image' },
-      { val:'image_overlay', label:'🖼️+🎨 Image + Overlay', desc:'Image with color overlay' },
-      { val:'none', label:'⬜ None', desc:'Transparent / white' },
-    ].map(opt => (
-      <button key={opt.val} type="button"
-        onClick={() => setBannerForm(f => ({ ...f, bg_type: opt.val }))}
-        style={{
-          padding:'10px 12px', border:`2px solid ${(bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#e0e0e0'}`,
-          borderRadius:'10px', cursor:'pointer', textAlign:'left',
-          background: (bannerForm.bg_type || 'gradient') === opt.val ? '#fff5f5' : 'white',
-          transition:'all 0.2s'
-        }}>
-        <div style={{ fontSize:'13px', fontWeight:'700', color: (bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#333' }}>{opt.label}</div>
-        <div style={{ fontSize:'11px', color:'#999', marginTop:'2px' }}>{opt.desc}</div>
-      </button>
-    ))}
-  </div>
 
-  {/* GRADIENT SECTION */}
-  {((bannerForm.bg_type || 'gradient') === 'gradient' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
-    <div style={{ marginBottom:'12px' }}>
-      <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'6px' }}>
-        {(bannerForm.bg_type || 'gradient') === 'image_overlay' ? 'Overlay Color / Gradient' : 'Background Gradient (CSS)'}
-      </label>
-      <input value={bannerForm.bg_gradient} onChange={e => setBannerForm(f => ({ ...f, bg_gradient: e.target.value }))} style={inp}
-        placeholder="linear-gradient(135deg, #e53935 0%, #ff6f00 100%)" />
-      <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
-        {[
-          { label:'🔴 Red-Orange', val:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)' },
-          { label:'🔵 Navy', val:'linear-gradient(135deg, #1a237e 0%, #283593 100%)' },
-          { label:'🟢 Green', val:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)' },
-          { label:'⚫ Dark', val:'linear-gradient(135deg, #212121 0%, #424242 100%)' },
-          { label:'💜 Purple', val:'linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)' },
-          { label:'🩵 Teal', val:'linear-gradient(135deg, #00838f 0%, #006064 100%)' },
-          { label:'🌅 Sunset', val:'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-          { label:'🌊 Ocean', val:'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-        ].map(g => (
-          <button key={g.label} type="button" onClick={() => setBannerForm(f => ({ ...f, bg_gradient: g.val }))}
-            style={{ padding:'4px 10px', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', background: bannerForm.bg_gradient === g.val ? '#fff5f5' : 'white', fontWeight: bannerForm.bg_gradient === g.val ? '700' : '400', transition:'all 0.2s' }}>
-            {g.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )}
+              <div style={{ background:'#f8f8f8', borderRadius:'12px', padding:'16px' }}>
+                <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.5px' }}>🎨 Background Type</label>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'8px', marginBottom:'14px' }}>
+                  {[
+                    { val:'gradient', label:'🎨 Color / Gradient', desc:'Solid color or gradient' },
+                    { val:'image', label:'🖼️ Image Only', desc:'Full banner image' },
+                    { val:'image_overlay', label:'🖼️+🎨 Image + Overlay', desc:'Image with color overlay' },
+                    { val:'none', label:'⬜ None', desc:'Transparent / white' },
+                  ].map(opt => (
+                    <button key={opt.val} type="button" onClick={() => setBannerForm(f => ({ ...f, bg_type: opt.val }))}
+                      style={{ padding:'10px 12px', border:`2px solid ${(bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#e0e0e0'}`, borderRadius:'10px', cursor:'pointer', textAlign:'left', background: (bannerForm.bg_type || 'gradient') === opt.val ? '#fff5f5' : 'white', transition:'all 0.2s' }}>
+                      <div style={{ fontSize:'13px', fontWeight:'700', color: (bannerForm.bg_type || 'gradient') === opt.val ? '#e53935' : '#333' }}>{opt.label}</div>
+                      <div style={{ fontSize:'11px', color:'#999', marginTop:'2px' }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
 
-  {/* IMAGE UPLOAD SECTION */}
-  {((bannerForm.bg_type || 'gradient') === 'image' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
-    <div>
-      <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>
-        Banner Image
-      </label>
+                {((bannerForm.bg_type || 'gradient') === 'gradient' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
+                  <div style={{ marginBottom:'12px' }}>
+                    <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'6px' }}>
+                      {(bannerForm.bg_type || 'gradient') === 'image_overlay' ? 'Overlay Color / Gradient' : 'Background Gradient (CSS)'}
+                    </label>
+                    <input value={bannerForm.bg_gradient} onChange={e => setBannerForm(f => ({ ...f, bg_gradient: e.target.value }))} style={inp} placeholder="linear-gradient(135deg, #e53935 0%, #ff6f00 100%)" />
+                    <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
+                      {[
+                        { label:'🔴 Red-Orange', val:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)' },
+                        { label:'🔵 Navy', val:'linear-gradient(135deg, #1a237e 0%, #283593 100%)' },
+                        { label:'🟢 Green', val:'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)' },
+                        { label:'⚫ Dark', val:'linear-gradient(135deg, #212121 0%, #424242 100%)' },
+                        { label:'💜 Purple', val:'linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%)' },
+                        { label:'🩵 Teal', val:'linear-gradient(135deg, #00838f 0%, #006064 100%)' },
+                        { label:'🌅 Sunset', val:'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+                        { label:'🌊 Ocean', val:'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+                      ].map(g => (
+                        <button key={g.label} type="button" onClick={() => setBannerForm(f => ({ ...f, bg_gradient: g.val }))}
+                          style={{ padding:'4px 10px', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', background: bannerForm.bg_gradient === g.val ? '#fff5f5' : 'white', fontWeight: bannerForm.bg_gradient === g.val ? '700' : '400', transition:'all 0.2s' }}>
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-      {/* Mode toggle */}
-      <div style={{ display:'flex', background:'#efefef', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
-        {['url', 'upload'].map(mode => (
-          <button key={mode} type="button"
-            onClick={() => setBannerForm(f => ({ ...f, _bannerImgMode: mode }))}
-            style={{
-              padding:'5px 14px', border:'none', cursor:'pointer', borderRadius:'6px',
-              fontSize:'12px', fontWeight:'700',
-              background: (bannerForm._bannerImgMode || 'url') === mode ? 'white' : 'transparent',
-              color: (bannerForm._bannerImgMode || 'url') === mode ? '#e53935' : '#999',
-              boxShadow: (bannerForm._bannerImgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-            }}>
-            {mode === 'url' ? '🔗 URL' : '📁 Upload'}
-          </button>
-        ))}
-      </div>
+                {((bannerForm.bg_type || 'gradient') === 'image' || (bannerForm.bg_type || 'gradient') === 'image_overlay') && (
+                  <div>
+                    <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'8px' }}>Banner Image</label>
+                    <div style={{ display:'flex', background:'#efefef', borderRadius:'8px', padding:'3px', marginBottom:'10px', width:'fit-content' }}>
+                      {['url', 'upload'].map(mode => (
+                        <button key={mode} type="button" onClick={() => setBannerForm(f => ({ ...f, _bannerImgMode: mode }))}
+                          style={{ padding:'5px 14px', border:'none', cursor:'pointer', borderRadius:'6px', fontSize:'12px', fontWeight:'700', background: (bannerForm._bannerImgMode || 'url') === mode ? 'white' : 'transparent', color: (bannerForm._bannerImgMode || 'url') === mode ? '#e53935' : '#999', boxShadow: (bannerForm._bannerImgMode || 'url') === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                          {mode === 'url' ? '🔗 URL' : '📁 Upload'}
+                        </button>
+                      ))}
+                    </div>
 
-      {/* URL input */}
-      {(bannerForm._bannerImgMode || 'url') === 'url' && (
-        <input value={bannerForm.bg_image || ''}
-          onChange={e => setBannerForm(f => ({ ...f, bg_image: e.target.value }))}
-          placeholder="https://example.com/banner.jpg"
-          style={inp} />
-      )}
+                    {(bannerForm._bannerImgMode || 'url') === 'url' && (
+                      <input value={bannerForm.bg_image || ''} onChange={e => setBannerForm(f => ({ ...f, bg_image: e.target.value }))} placeholder="https://example.com/banner.jpg" style={inp} />
+                    )}
 
-      {/* File upload */}
-      {(bannerForm._bannerImgMode || 'url') === 'upload' && (
-        <div>
-          <input type="file" id="bannerImageFile" accept="image/jpeg,image/png,image/webp"
-            style={{ display:'none' }}
-            onChange={async (e) => {
-              const file = e.target.files[0]
-              if (!file) return
-              if (file.size > 10 * 1024 * 1024) { toast.error('Max 10MB for banners'); return }
-              setBannerForm(f => ({ ...f, _bannerUploading: true }))
-              try {
-                const fileName = `banners/${Date.now()}-${file.name.replace(/\s/g,'-')}`
-                const { data, error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl:'3600', upsert:false })
-                if (!error && data) {
-                  const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
-                  setBannerForm(f => ({ ...f, bg_image: urlData.publicUrl, _bannerUploading: false }))
-                  toast.success('✅ Banner image uploaded!')
-                } else {
-                  const reader = new FileReader()
-                  reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
-                  reader.readAsDataURL(file)
-                  toast.success('✅ Image loaded!')
-                }
-              } catch {
-                const reader = new FileReader()
-                reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
-                reader.readAsDataURL(file)
-              }
-            }}
-          />
-          {bannerForm._bannerUploading ? (
-            <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'24px', textAlign:'center', background:'#fff5f5' }}>
-              <div style={{ fontSize:'20px' }}>⏳</div>
-              <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600', marginTop:'6px' }}>Uploading...</div>
-            </div>
-          ) : (
-            <div onClick={() => document.getElementById('bannerImageFile').click()}
-              style={{ border:'2px dashed #e0e0e0', borderRadius:'10px', padding:'24px', textAlign:'center', cursor:'pointer', background:'#f8f8f8', transition:'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
-              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935' }}
-              onDrop={e => {
-                e.preventDefault()
-                const file = e.dataTransfer.files[0]
-                if (file) {
-                  const input = document.getElementById('bannerImageFile')
-                  const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files
-                  input.dispatchEvent(new Event('change', { bubbles:true }))
-                }
-              }}>
-              <div style={{ fontSize:'28px', marginBottom:'6px' }}>🖼️</div>
-              <div style={{ fontSize:'13px', fontWeight:'700', color:'#333' }}>Click or drag banner image</div>
-              <div style={{ fontSize:'11px', color:'#999', marginTop:'3px' }}>JPG, PNG, WEBP — max 10MB</div>
-              <div style={{ fontSize:'10px', color:'#bbb', marginTop:'3px' }}>Recommended: 1280×480px or wider</div>
-            </div>
-          )}
-        </div>
-      )}
+                    {(bannerForm._bannerImgMode || 'url') === 'upload' && (
+                      <div>
+                        <input type="file" id="bannerImageFile" accept="image/jpeg,image/png,image/webp" style={{ display:'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files[0]
+                            if (!file) return
+                            if (file.size > 10 * 1024 * 1024) { toast.error('Max 10MB for banners'); return }
+                            setBannerForm(f => ({ ...f, _bannerUploading: true }))
+                            try {
+                              const fileName = `banners/${Date.now()}-${file.name.replace(/\s/g,'-')}`
+                              const { data, error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl:'3600', upsert:false })
+                              if (!error && data) {
+                                const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(data.path)
+                                setBannerForm(f => ({ ...f, bg_image: urlData.publicUrl, _bannerUploading: false }))
+                                toast.success('✅ Banner image uploaded!')
+                              } else {
+                                const reader = new FileReader()
+                                reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
+                                reader.readAsDataURL(file)
+                                toast.success('✅ Image loaded!')
+                              }
+                            } catch {
+                              const reader = new FileReader()
+                              reader.onload = ev => setBannerForm(f => ({ ...f, bg_image: ev.target.result, _bannerUploading: false }))
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                        {bannerForm._bannerUploading ? (
+                          <div style={{ border:'2px dashed #e53935', borderRadius:'10px', padding:'24px', textAlign:'center', background:'#fff5f5' }}>
+                            <div style={{ fontSize:'20px' }}>⏳</div>
+                            <div style={{ fontSize:'13px', color:'#e53935', fontWeight:'600', marginTop:'6px' }}>Uploading...</div>
+                          </div>
+                        ) : (
+                          <div onClick={() => document.getElementById('bannerImageFile').click()}
+                            style={{ border:'2px dashed #e0e0e0', borderRadius:'10px', padding:'24px', textAlign:'center', cursor:'pointer', background:'#f8f8f8', transition:'all 0.2s' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor='#e53935'; e.currentTarget.style.background='#fff5f5' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor='#e0e0e0'; e.currentTarget.style.background='#f8f8f8' }}
+                            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#e53935' }}
+                            onDrop={e => {
+                              e.preventDefault()
+                              const file = e.dataTransfer.files[0]
+                              if (file) { const input = document.getElementById('bannerImageFile'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles:true })) }
+                            }}>
+                            <div style={{ fontSize:'28px', marginBottom:'6px' }}>🖼️</div>
+                            <div style={{ fontSize:'13px', fontWeight:'700', color:'#333' }}>Click or drag banner image</div>
+                            <div style={{ fontSize:'11px', color:'#999', marginTop:'3px' }}>JPG, PNG, WEBP — max 10MB</div>
+                            <div style={{ fontSize:'10px', color:'#bbb', marginTop:'3px' }}>Recommended: 1280×480px or wider</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-      {/* Image preview + remove */}
-      {bannerForm.bg_image && !bannerForm._bannerUploading && (
-        <div style={{ marginTop:'10px', borderRadius:'10px', overflow:'hidden', border:'1px solid #e0e0e0', position:'relative' }}>
-          <img src={bannerForm.bg_image} alt="Banner preview"
-            style={{ width:'100%', height:'120px', objectFit:'cover', display:'block' }}
-            onError={e => e.target.style.display='none'} />
-          <button type="button"
-            onClick={() => setBannerForm(f => ({ ...f, bg_image: '' }))}
-            style={{ position:'absolute', top:'8px', right:'8px', background:'rgba(229,57,53,0.9)', color:'white', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
-            ✕ Remove
-          </button>
-          <div style={{ padding:'8px 12px', background:'white', fontSize:'11px', color:'#2e7d32', fontWeight:'600' }}>
-            ✅ Banner image ready
-          </div>
-        </div>
-      )}
+                    {bannerForm.bg_image && !bannerForm._bannerUploading && (
+                      <div style={{ marginTop:'10px', borderRadius:'10px', overflow:'hidden', border:'1px solid #e0e0e0', position:'relative' }}>
+                        <img src={bannerForm.bg_image} alt="Banner preview" style={{ width:'100%', height:'120px', objectFit:'cover', display:'block' }} onError={e => e.target.style.display='none'} />
+                        <button type="button" onClick={() => setBannerForm(f => ({ ...f, bg_image: '' }))}
+                          style={{ position:'absolute', top:'8px', right:'8px', background:'rgba(229,57,53,0.9)', color:'white', border:'none', borderRadius:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+                          ✕ Remove
+                        </button>
+                        <div style={{ padding:'8px 12px', background:'white', fontSize:'11px', color:'#2e7d32', fontWeight:'600' }}>✅ Banner image ready</div>
+                      </div>
+                    )}
 
-      {/* Overlay settings for image_overlay mode */}
-      {(bannerForm.bg_type || 'gradient') === 'image_overlay' && (
-        <div style={{ marginTop:'12px', background:'white', borderRadius:'8px', padding:'12px', border:'1px solid #e0e0e0' }}>
-          <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>
-            Overlay Opacity
-          </label>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-            <input type="range" min="0" max="100" value={bannerForm.overlay_opacity || 50}
-              onChange={e => setBannerForm(f => ({ ...f, overlay_opacity: parseInt(e.target.value) }))}
-              style={{ flex:1, accentColor:'#e53935' }} />
-            <span style={{ fontSize:'13px', fontWeight:'700', color:'#e53935', minWidth:'36px' }}>
-              {bannerForm.overlay_opacity || 50}%
-            </span>
-          </div>
-          <div style={{ fontSize:'11px', color:'#999', marginTop:'4px' }}>
-            Higher opacity = more color, less image visible
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-</div>
+                    {(bannerForm.bg_type || 'gradient') === 'image_overlay' && (
+                      <div style={{ marginTop:'12px', background:'white', borderRadius:'8px', padding:'12px', border:'1px solid #e0e0e0' }}>
+                        <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>Overlay Opacity</label>
+                        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                          <input type="range" min="0" max="100" value={bannerForm.overlay_opacity || 50} onChange={e => setBannerForm(f => ({ ...f, overlay_opacity: parseInt(e.target.value) }))} style={{ flex:1, accentColor:'#e53935' }} />
+                          <span style={{ fontSize:'13px', fontWeight:'700', color:'#e53935', minWidth:'36px' }}>{bannerForm.overlay_opacity || 50}%</span>
+                        </div>
+                        <div style={{ fontSize:'11px', color:'#999', marginTop:'4px' }}>Higher opacity = more color, less image visible</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px' }}>
                 <div>
                   <label style={{ fontSize:'12px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Text Color</label>

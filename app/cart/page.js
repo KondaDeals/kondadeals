@@ -8,6 +8,7 @@ import useStore from '@/lib/store'
 import toast from 'react-hot-toast'
 import { Trash2, ShoppingBag, Tag, Truck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { formatINR } from '@/lib/currency'
 
 export default function CartPage() {
   const router = useRouter()
@@ -140,8 +141,8 @@ export default function CartPage() {
                     {item.name}
                   </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#e53935' }}>₹{item.sale_price}</span>
-                    <span style={{ fontSize: '13px', color: '#999', textDecoration: 'line-through' }}>₹{item.mrp}</span>
+                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#e53935' }}>{formatINR(item.sale_price)}</span>
+                    <span style={{ fontSize: '13px', color: '#999', textDecoration: 'line-through' }}>{formatINR(item.mrp)}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
@@ -160,10 +161,10 @@ export default function CartPage() {
 
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: '18px', fontWeight: '800', color: '#1a1a1a' }}>
-                    ₹{item.sale_price * item.quantity}
+                    {formatINR(item.sale_price * item.quantity)}
                   </div>
                   <div style={{ fontSize: '12px', color: '#2e7d32', marginTop: '4px' }}>
-                    Save ₹{(item.mrp - item.sale_price) * item.quantity}
+                    Save {formatINR((item.mrp - item.sale_price) * item.quantity)}
                   </div>
                 </div>
               </div>
@@ -173,7 +174,7 @@ export default function CartPage() {
               <div style={{ background: '#fff3e0', border: '1px dashed #ff6f00', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Truck size={18} color="#ff6f00" />
                 <span style={{ fontSize: '13px', color: '#e65100', fontWeight: '600' }}>
-                  Add ₹{499 - subtotal} more for FREE delivery!
+                  Add {formatINR(499 - subtotal)} more for FREE delivery!
                 </span>
               </div>
             ) : (
@@ -187,10 +188,8 @@ export default function CartPage() {
           </div>
 
           {/* Order Summary */}
-          <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #f0f0f0', position: 'sticky', top: '80px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', paddingBottom: '12px', borderBottom: '2px solid #f5f5f5' }}>
-              Order Summary
-            </h2>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #f0f0f0', position: 'sticky', top: '80px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px' }}>Order Summary</h3>
 
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -228,27 +227,35 @@ export default function CartPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#666' }}>
-                <span>Subtotal ({cart.reduce((t, i) => t + i.quantity, 0)} items)</span>
-                <span>₹{subtotal}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: '#666' }}>Subtotal ({cart.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                <span style={{ fontWeight: '600' }}>{formatINR(subtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: '#666' }}>Shipping</span>
+                <span style={{ fontWeight: '600', color: shipping === 0 ? '#2e7d32' : '#333' }}>
+                  {shipping === 0 ? 'FREE' : formatINR(shipping)}
+                </span>
               </div>
               {discount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#2e7d32' }}>
-                  <span>Coupon Discount</span><span>− ₹{discount}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#666' }}>Coupon Discount</span>
+                  <span style={{ fontWeight: '600', color: '#2e7d32' }}>-{formatINR(discount)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: shipping === 0 ? '#2e7d32' : '#666' }}>
-                <span>Shipping</span><span>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
+              {shipping === 0 && (
+                <div style={{ background: '#e8f5e9', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', color: '#2e7d32', fontWeight: '600' }}>
+                  🎉 You saved {formatINR(40)} on shipping!
+                </div>
+              )}
+              <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '16px', fontWeight: '800' }}>Total</span>
+                <span style={{ fontSize: '20px', fontWeight: '900', color: '#e53935' }}>{formatINR(total)}</span>
               </div>
-              <div style={{ height: '1px', background: '#f0f0f0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '800' }}>
-                <span>Total</span>
-                <span style={{ color: '#e53935' }}>₹{total}</span>
-              </div>
-              {discount > 0 && (
-                <div style={{ background: '#e8f5e9', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', color: '#2e7d32', fontWeight: '600', textAlign: 'center' }}>
-                  🎉 You save ₹{discount} on this order!
+              {subtotal > total && (
+                <div style={{ background: '#fff5f5', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', color: '#e53935', fontWeight: '600', textAlign: 'center' }}>
+                  💰 You save {formatINR(subtotal - total)} on this order!
                 </div>
               )}
             </div>

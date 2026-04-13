@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { CheckCircle, Package, Truck, Home } from 'lucide-react'
+import { formatINR } from '@/lib/currency'
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams()

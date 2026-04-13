@@ -7,6 +7,7 @@ import useStore from '@/lib/store'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { MapPin, CreditCard, CheckCircle, ChevronRight, Truck, Shield } from 'lucide-react'
+import { formatINR } from '@/lib/currency'
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -23,32 +24,31 @@ export default function CheckoutPage() {
   const shipping = subtotal >= 499 ? 0 : 49
   const total = subtotal + shipping
 
-// Auto-fill saved address
-useEffect(() => {
-  if (user) loadSavedAddress()
-}, [user])
+  useEffect(() => {
+    if (user) loadSavedAddress()
+  }, [user])
 
-const loadSavedAddress = async () => {
-  const { data } = await supabase
-    .from('addresses')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_default', true)
-    .single()
+  const loadSavedAddress = async () => {
+    const { data } = await supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_default', true)
+      .single()
 
-  if (data) {
-    setAddress({
-      full_name: data.full_name || '',
-      phone: data.phone || '',
-      address_line1: data.address_line1 || '',
-      address_line2: data.address_line2 || '',
-      city: data.city || '',
-      state: data.state || '',
-      pincode: data.pincode || ''
-    })
-    toast.success('📍 Saved address loaded!')
+    if (data) {
+      setAddress({
+        full_name: data.full_name || '',
+        phone: data.phone || '',
+        address_line1: data.address_line1 || '',
+        address_line2: data.address_line2 || '',
+        city: data.city || '',
+        state: data.state || '',
+        pincode: data.pincode || ''
+      })
+      toast.success('📍 Saved address loaded!')
+    }
   }
-}
 
   useEffect(() => {
     if (!user) {
@@ -81,89 +81,86 @@ const loadSavedAddress = async () => {
     return 'KD' + Date.now().toString().slice(-8).toUpperCase()
   }
 
- const placeOrder = async () => {
-  if (!validateAddress()) return
-  setLoading(true)
-  try {
-    const orderNumber = generateOrderNumber()
+  const placeOrder = async () => {
+    if (!validateAddress()) return
+    setLoading(true)
+    try {
+      const orderNumber = generateOrderNumber()
 
-    // Save address to user profile
-    if (user) {
-      const existingAddr = await supabase
-        .from('addresses')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('pincode', address.pincode)
-        .eq('address_line1', address.address_line1)
-        .single()
+      if (user) {
+        const existingAddr = await supabase
+          .from('addresses')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('pincode', address.pincode)
+          .eq('address_line1', address.address_line1)
+          .single()
 
-      if (!existingAddr.data) {
-        await supabase.from('addresses').insert({
+        if (!existingAddr.data) {
+          await supabase.from('addresses').insert({
+            user_id: user.id,
+            full_name: address.full_name,
+            phone: address.phone,
+            address_line1: address.address_line1,
+            address_line2: address.address_line2 || '',
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode,
+            is_default: true
+          })
+        }
+      }
+
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert({
+          order_number: orderNumber,
           user_id: user.id,
           full_name: address.full_name,
           phone: address.phone,
           address_line1: address.address_line1,
-          address_line2: address.address_line2 || '',
+          address_line2: address.address_line2,
           city: address.city,
           state: address.state,
           pincode: address.pincode,
-          is_default: true
+          subtotal: subtotal,
+          shipping_amount: shipping,
+          final_amount: total,
+          payment_method: paymentMethod,
+          payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
+          status: 'confirmed'
         })
-      }
-    }
+        .select()
+        .single()
 
-    const { data: order, error } = await supabase
-      .from('orders')
-      .insert({
-        order_number: orderNumber,
-        user_id: user.id,
-        full_name: address.full_name,
-        phone: address.phone,
-        address_line1: address.address_line1,
-        address_line2: address.address_line2,
-        city: address.city,
-        state: address.state,
-        pincode: address.pincode,
-        subtotal: subtotal,
-        shipping_amount: shipping,
-        final_amount: total,
-        payment_method: paymentMethod,
-        payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
-        status: 'confirmed'
+      if (error) throw error
+
+      const orderItems = cart.map(item => ({
+        order_id: order.id,
+        product_id: item.id,
+        product_name: item.name,
+        product_image: item.images?.[0] || null,
+        quantity: item.quantity,
+        mrp: item.mrp,
+        sale_price: item.sale_price
+      }))
+      await supabase.from('order_items').insert(orderItems)
+
+      await supabase.from('order_status_history').insert({
+        order_id: order.id,
+        status: 'confirmed',
+        remarks: 'Order placed successfully'
       })
-      .select()
-      .single()
 
-    if (error) throw error
-
-    // Insert order items
-    const orderItems = cart.map(item => ({
-      order_id: order.id,
-      product_id: item.id,
-      product_name: item.name,
-      product_image: item.images?.[0] || null,
-      quantity: item.quantity,
-      mrp: item.mrp,
-      sale_price: item.sale_price
-    }))
-    await supabase.from('order_items').insert(orderItems)
-
-    // Add to status history
-    await supabase.from('order_status_history').insert({
-      order_id: order.id,
-      status: 'confirmed',
-      remarks: 'Order placed successfully'
-    })
-
-    clearCart()
-    toast.success('Order placed successfully! 🎉')
-    router.push(`/order-success?order=${orderNumber}`)
-  } catch (err) {
-    console.error(err)
-    toast.error('Failed to place order. Please try again.')
+      clearCart()
+      toast.success('Order placed successfully! 🎉')
+      router.push(`/order-success?order=${orderNumber}`)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to place order. Please try again.')
+    }
+    setLoading(false)
   }
-  setLoading(false)
-}
 
   const indianStates = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -415,7 +412,7 @@ const loadSavedAddress = async () => {
                         <div style={{ fontSize: '14px', fontWeight: '600', lineHeight: '1.3' }}>{item.name}</div>
                         <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>Qty: {item.quantity}</div>
                       </div>
-                      <div style={{ fontWeight: '700', fontSize: '15px' }}>₹{item.sale_price * item.quantity}</div>
+                      <div style={{ fontWeight: '700', fontSize: '15px' }}>{formatINR(item.sale_price * item.quantity)}</div>
                     </div>
                   ))}
                 </div>
@@ -448,26 +445,30 @@ const loadSavedAddress = async () => {
             {cart.map(item => (
               <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '10px', gap: '8px' }}>
                 <span style={{ color: '#555', flex: 1 }}>{item.name.substring(0, 28)}... × {item.quantity}</span>
-                <span style={{ fontWeight: '700', flexShrink: 0 }}>₹{item.sale_price * item.quantity}</span>
+                <span style={{ fontWeight: '700', flexShrink: 0 }}>{formatINR(item.sale_price * item.quantity)}</span>
               </div>
             ))}
             <div style={{ height: '1px', background: '#f0f0f0', margin: '12px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#666', marginBottom: '8px' }}>
-              <span>Subtotal</span><span>₹{subtotal}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '10px' }}>
+              <span style={{ color: '#666' }}>Subtotal</span>
+              <span style={{ fontWeight: '600' }}>{formatINR(subtotal)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: shipping === 0 ? '#2e7d32' : '#666', marginBottom: '8px' }}>
-              <span>Shipping</span><span>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '10px' }}>
+              <span style={{ color: '#666' }}>Shipping</span>
+              <span style={{ fontWeight: '600', color: shipping === 0 ? '#2e7d32' : '#333' }}>
+                {shipping === 0 ? 'FREE' : formatINR(shipping)}
+              </span>
             </div>
-            <div style={{ height: '1px', background: '#f0f0f0', margin: '12px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '800' }}>
-              <span>Total</span><span style={{ color: '#e53935' }}>₹{total}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '18px', paddingTop: '12px', borderTop: '2px solid #f0f0f0', marginTop: '8px' }}>
+              <span>Total</span>
+              <span style={{ color: '#e53935' }}>{formatINR(total)}</span>
             </div>
             <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666' }}>
                 <Shield size={14} color="#2e7d32" /> 100% Secure Checkout
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#666' }}>
-                <Truck size={14} color="#2e7d32" /> {shipping === 0 ? 'Free Delivery' : `₹${shipping} Delivery Charge`}
+                <Truck size={14} color="#2e7d32" /> {shipping === 0 ? 'Free Delivery' : `${formatINR(shipping)} Delivery Charge`}
               </div>
             </div>
           </div>
