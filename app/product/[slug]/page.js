@@ -391,6 +391,24 @@ export default function ProductPage() {
     <Heart size={18} color={inWishlist ? '#e53935' : '#999'} fill={inWishlist ? '#e53935' : 'none'} />
   </button>
 </div>
+{/* Product Coupon Badge */}
+{product.product_coupon_enabled && product.product_coupon_active && (
+  <div style={{ background: 'linear-gradient(135deg, #e3f2fd, #e8eaf6)', border: '1.5px dashed #90caf9', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <span style={{ fontSize: '22px' }}>🏷️</span>
+    <div>
+      <div style={{ fontSize: '13px', fontWeight: '800', color: '#1565c0' }}>
+        Product Coupon Available!
+      </div>
+      <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>
+        Use code in cart to get
+        {product.product_coupon_type === 'percentage'
+          ? ` ${product.product_coupon_value}% OFF`
+          : ` ₹${product.product_coupon_value} OFF`
+        } on this product
+      </div>
+    </div>
+  </div>
+)}
 
             {/* Trust Badges */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>

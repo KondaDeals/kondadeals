@@ -39,7 +39,16 @@ export default function AdminPage() {
   const [trustStrips, setTrustStrips] = useState([])
   const [allReviews, setAllReviews] = useState([])
 
-  const emptyProduct = { name:'', slug:'', description:'', mrp:'', sale_price:'', category_id:'', stock:'', images:[], discount_timer_hours:'', return_policy:'7_days', is_featured:false, is_trending:false, is_new_arrival:false, is_active:true }
+  const emptyProduct = {
+  name:'', slug:'', description:'', mrp:'', sale_price:'',
+  category_id:'', stock:'', images:[], discount_timer_hours:'',
+  return_policy:'7_days',
+  product_coupon_enabled: false, product_coupon_code:'',
+  product_coupon_type:'percentage', product_coupon_value:'',
+  product_coupon_min_qty:1, product_coupon_start_date:'',
+  product_coupon_end_date:'', product_coupon_active:true,
+  is_featured:false, is_trending:false, is_new_arrival:false, is_active:true
+}
   const [productForm, setProductForm] = useState(emptyProduct)
   const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
   const [bannerForm, setBannerForm] = useState({ title:'', subtitle:'', description:'', badge_text:'', cta_text:'Shop Now', cta_link:'/collections/all', bg_gradient:'linear-gradient(135deg, #e53935 0%, #ff6f00 100%)', bg_type:'gradient', bg_image:'', overlay_opacity:50, text_color:'#ffffff', button_color:'#ffffff', button_text_color:'#e53935', emoji:'⚡', sort_order:0, is_active:true })
@@ -94,7 +103,14 @@ export default function AdminPage() {
   const saveProduct = async () => {
     if (!productForm.name || !productForm.mrp || !productForm.sale_price || !productForm.category_id) { toast.error('Fill required fields'); return }
     const discountEndsAt = productForm.discount_timer_hours ? new Date(Date.now() + parseFloat(productForm.discount_timer_hours) * 3600000).toISOString() : null
-    const data = { name: productForm.name, slug: productForm.slug || slugify(productForm.name), description: productForm.description, mrp: parseFloat(productForm.mrp), sale_price: parseFloat(productForm.sale_price), category_id: productForm.category_id, stock: parseInt(productForm.stock) || 0, images: productForm.images || [], discount_ends_at: discountEndsAt, discount_timer_hours: productForm.discount_timer_hours ? parseFloat(productForm.discount_timer_hours) : null, return_policy: productForm.return_policy || '7_days', is_featured: productForm.is_featured, is_trending: productForm.is_trending, is_new_arrival: productForm.is_new_arrival, is_active: productForm.is_active }
+    const data = { name: productForm.name, slug: productForm.slug || slugify(productForm.name), description: productForm.description, mrp: parseFloat(productForm.mrp), sale_price: parseFloat(productForm.sale_price), category_id: productForm.category_id, stock: parseInt(productForm.stock) || 0, images: productForm.images || [], discount_ends_at: discountEndsAt, discount_timer_hours: productForm.discount_timer_hours ? parseFloat(productForm.discount_timer_hours) : null, return_policy: productForm.return_policy || '7_days', product_coupon_enabled: productForm.product_coupon_enabled || false,
+product_coupon_code: productForm.product_coupon_code || null,
+product_coupon_type: productForm.product_coupon_type || 'percentage',
+product_coupon_value: parseFloat(productForm.product_coupon_value) || 0,
+product_coupon_min_qty: parseInt(productForm.product_coupon_min_qty) || 1,
+product_coupon_start_date: productForm.product_coupon_start_date || null,
+product_coupon_end_date: productForm.product_coupon_end_date || null,
+product_coupon_active: productForm.product_coupon_active !== false, is_featured: productForm.is_featured, is_trending: productForm.is_trending, is_new_arrival: productForm.is_new_arrival, is_active: productForm.is_active }
     const { error } = editingProduct ? await supabase.from('products').update(data).eq('id', editingProduct.id) : await supabase.from('products').insert(data)
     if (error) { toast.error(error.message); return }
     toast.success(editingProduct ? 'Updated!' : 'Added!')
@@ -103,7 +119,14 @@ export default function AdminPage() {
 
   const editProduct = p => {
     setEditingProduct(p)
-    setProductForm({ name: p.name, slug: p.slug, description: p.description || '', mrp: p.mrp, sale_price: p.sale_price, category_id: p.category_id, stock: p.stock, images: p.images || [], discount_timer_hours: p.discount_timer_hours || '', return_policy: p.return_policy || '7_days', is_featured: p.is_featured, is_trending: p.is_trending, is_new_arrival: p.is_new_arrival, is_active: p.is_active })
+    setProductForm({ name: p.name, slug: p.slug, description: p.description || '', mrp: p.mrp, sale_price: p.sale_price, category_id: p.category_id, stock: p.stock, images: p.images || [], discount_timer_hours: p.discount_timer_hours || '', return_policy: p.return_policy || '7_days', product_coupon_enabled: p.product_coupon_enabled || false,
+product_coupon_code: p.product_coupon_code || '',
+product_coupon_type: p.product_coupon_type || 'percentage',
+product_coupon_value: p.product_coupon_value || '',
+product_coupon_min_qty: p.product_coupon_min_qty || 1,
+product_coupon_start_date: p.product_coupon_start_date || '',
+product_coupon_end_date: p.product_coupon_end_date || '',
+product_coupon_active: p.product_coupon_active !== false, is_featured: p.is_featured, is_trending: p.is_trending, is_new_arrival: p.is_new_arrival, is_active: p.is_active })
     setShowProductModal(true)
   }
 
@@ -974,6 +997,106 @@ export default function AdminPage() {
                   <option value="30_days">30 Days Return</option>
                 </select>
               </div>
+              {/* Product-Level Coupon */}
+<div style={{ background:'#f0f4ff', borderRadius:'10px', padding:'14px', border:'1px solid #c7d7ff' }}>
+  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+    <label style={{ fontSize:'12px', fontWeight:'700', color:'#1565c0', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+      🏷️ Product Coupon Code
+    </label>
+    <label style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer' }}>
+      <input type="checkbox" name="product_coupon_enabled"
+        checked={productForm.product_coupon_enabled || false}
+        onChange={handleProductChange}
+        style={{ accentColor:'#1565c0', width:'16px', height:'16px' }} />
+      <span style={{ fontSize:'12px', fontWeight:'700', color:'#1565c0' }}>Enable</span>
+    </label>
+  </div>
+
+  {productForm.product_coupon_enabled && (
+    <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Coupon Code *</label>
+          <input name="product_coupon_code"
+            value={productForm.product_coupon_code || ''}
+            onChange={e => setProductForm(p => ({ ...p, product_coupon_code: e.target.value.toUpperCase() }))}
+            placeholder="e.g. DRONE500"
+            style={{ ...inp, fontWeight:'700', letterSpacing:'1px' }}
+            onFocus={e => e.target.style.borderColor='#1565c0'}
+            onBlur={e => e.target.style.borderColor='#e0e0e0'} />
+        </div>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Discount Type</label>
+          <select name="product_coupon_type"
+            value={productForm.product_coupon_type || 'percentage'}
+            onChange={handleProductChange}
+            style={{ ...inp, cursor:'pointer' }}>
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount (₹)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>
+            Discount Value {productForm.product_coupon_type === 'percentage' ? '(%)' : '(₹)'}
+          </label>
+          <input type="number" name="product_coupon_value"
+            value={productForm.product_coupon_value || ''}
+            onChange={handleProductChange}
+            placeholder={productForm.product_coupon_type === 'percentage' ? '10' : '500'}
+            style={inp}
+            onFocus={e => e.target.style.borderColor='#1565c0'}
+            onBlur={e => e.target.style.borderColor='#e0e0e0'} />
+          {productForm.product_coupon_value > 0 && productForm.sale_price > 0 && (
+            <div style={{ fontSize:'11px', color:'#1565c0', marginTop:'3px', fontWeight:'600' }}>
+              💡 Customer saves: ₹{productForm.product_coupon_type === 'percentage'
+                ? Math.round(productForm.sale_price * productForm.product_coupon_value / 100)
+                : productForm.product_coupon_value}
+            </div>
+          )}
+        </div>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Min Qty to Apply</label>
+          <input type="number" name="product_coupon_min_qty"
+            value={productForm.product_coupon_min_qty || 1}
+            onChange={handleProductChange}
+            placeholder="1"
+            min="1"
+            style={inp}
+            onFocus={e => e.target.style.borderColor='#1565c0'}
+            onBlur={e => e.target.style.borderColor='#e0e0e0'} />
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>Start Date (optional)</label>
+          <input type="datetime-local" name="product_coupon_start_date"
+            value={productForm.product_coupon_start_date || ''}
+            onChange={handleProductChange}
+            style={{ ...inp, fontSize:'12px' }} />
+        </div>
+        <div>
+          <label style={{ fontSize:'11px', fontWeight:'600', color:'#555', display:'block', marginBottom:'4px' }}>End Date (optional)</label>
+          <input type="datetime-local" name="product_coupon_end_date"
+            value={productForm.product_coupon_end_date || ''}
+            onChange={handleProductChange}
+            style={{ ...inp, fontSize:'12px' }} />
+        </div>
+      </div>
+
+      <label style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', padding:'8px', background:'white', borderRadius:'8px' }}>
+        <input type="checkbox" name="product_coupon_active"
+          checked={productForm.product_coupon_active !== false}
+          onChange={handleProductChange}
+          style={{ accentColor:'#1565c0', width:'16px', height:'16px' }} />
+        <span style={{ fontSize:'13px', fontWeight:'600', color:'#1565c0' }}>✅ Coupon Active</span>
+      </label>
+    </div>
+  )}
+</div>
               <div style={{ background:'#f8f8f8', borderRadius:'10px', padding:'14px' }}>
                 <label style={{ fontSize:'12px', fontWeight:'700', color:'#555', display:'block', marginBottom:'8px' }}>⏰ Discount Timer</label>
                 <select name="discount_timer_hours" value={productForm.discount_timer_hours} onChange={handleProductChange} style={{ ...inp, background:'white', cursor:'pointer' }}>
