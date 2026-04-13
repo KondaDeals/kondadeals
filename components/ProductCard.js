@@ -1,233 +1,129 @@
 'use client'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, Heart, Star, Zap } from 'lucide-react'
-import toast from 'react-hot-toast'
 import useStore from '@/lib/store'
-import DiscountTimer from '@/components/DiscountTimer'
+import toast from 'react-hot-toast'
+import { Heart } from 'lucide-react'
+import DiscountTimer from './DiscountTimer'
+import { formatINR } from '@/lib/currency'
 
-const formatINR = n => n?.toLocaleString('en-IN') || '0'
-
-export default function ProductCard({ product }) {
+const ProductCard = memo(function ProductCard({ product }) {
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError] = useState(false)
   const { addToCart, toggleWishlist, isInWishlist } = useStore()
-  const [adding, setAdding] = useState(false)
-  const inWishlist = isInWishlist(product.id)
 
   const discount = Math.round(((product.mrp - product.sale_price) / product.mrp) * 100)
+  const inWishlist = isInWishlist(product.id)
 
   const handleAddToCart = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    setAdding(true)
-    addToCart(product)
-    toast.success(`${product.name.substring(0, 25)}... added to cart!`)
-    setTimeout(() => setAdding(false), 1000)
+    addToCart(product, 1)
+    toast.success('Added to cart! 🛒', { duration: 1500 })
   }
 
   const handleWishlist = (e) => {
     e.preventDefault()
     e.stopPropagation()
     toggleWishlist(product)
-    toast.success(inWishlist ? 'Removed from wishlist' : 'Added to wishlist!')
+    toast.success(inWishlist ? 'Removed from wishlist' : 'Added to wishlist ❤️', { duration: 1500 })
   }
 
   return (
-    <Link href={`/product/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        border: '1px solid #f0f0f0',
-        transition: 'all 0.25s',
-        cursor: 'pointer',
-        position: 'relative',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-4px)'
-        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
-      >
-        {/* Discount Badge */}
-        {discount > 0 && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            background: '#e53935',
-            color: 'white',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: '700',
-            zIndex: 2
-          }}>
-            {discount}% OFF
-          </div>
-        )}
+    <div style={{ background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f0f0f0', height: '100%', display: 'flex', flexDirection: 'column', transition: 'transform 0.2s, box-shadow 0.2s' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}>
 
-        {/* Trending Badge */}
-        {product.is_trending && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '42px',
-            background: '#ff6f00',
-            color: 'white',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: '700',
-            zIndex: 2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px'
-          }}>
-            <Zap size={10} /> HOT
-          </div>
-        )}
+      <Link href={`/product/${product.slug}`} style={{ textDecoration: 'none', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Image */}
+        <div style={{ position: 'relative', aspectRatio: '1', background: '#f8f8f8', overflow: 'hidden', flexShrink: 0 }}>
+          {/* Skeleton */}
+          {!imgLoaded && !imgError && (
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite' }} />
+          )}
 
-        {/* Wishlist Button */}
-        <button
-          onClick={handleWishlist}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            background: 'white',
-            border: '1px solid #eee',
-            borderRadius: '50%',
-            width: '32px',
-            height: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <Heart size={16} color={inWishlist ? '#e53935' : '#999'} fill={inWishlist ? '#e53935' : 'none'} />
-        </button>
+          {/* Badges */}
+          {discount > 0 && (
+            <span style={{ position: 'absolute', top: '8px', left: '8px', background: '#e53935', color: 'white', padding: '2px 7px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', zIndex: 2 }}>
+              {discount}% OFF
+            </span>
+          )}
+          {product.is_trending && (
+            <span style={{ position: 'absolute', top: '8px', right: '32px', background: '#ff6f00', color: 'white', padding: '2px 6px', borderRadius: '6px', fontSize: '10px', fontWeight: '700', zIndex: 2 }}>
+              ⚡ HOT
+            </span>
+          )}
 
-        {/* Product Image */}
-        <div style={{
-          background: '#f8f8f8',
-          padding: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '200px',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {product.images && product.images[0] ? (
+          {/* Wishlist */}
+          <button onClick={handleWishlist}
+            style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+            <Heart size={14} color={inWishlist ? '#e53935' : '#999'} fill={inWishlist ? '#e53935' : 'none'} />
+          </button>
+
+          {/* Image */}
+          {product.images?.[0] && !imgError ? (
             <img
               src={product.images[0]}
               alt={product.name}
-              style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }}
+              loading="lazy"
+              decoding="async"
+              width={300}
+              height={300}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => { setImgError(true); setImgLoaded(true) }}
+              style={{
+                width: '100%', height: '100%', objectFit: 'contain',
+                opacity: imgLoaded ? 1 : 0,
+                transition: 'opacity 0.2s, transform 0.3s',
+              }}
+              onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={e => e.target.style.transform = 'scale(1)'}
             />
           ) : (
-            <div style={{
-              width: '120px',
-              height: '120px',
-              background: 'linear-gradient(135deg, #e53935, #ff6f00)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '48px'
-            }}>
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>
               🛍️
             </div>
           )}
         </div>
 
-        {/* Product Info */}
-        <div style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <p style={{ fontSize: '13px', color: '#999', fontWeight: '500' }}>
-            {product.categories?.name || 'Viral Gadgets'}
-          </p>
-
-          <h3 style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            lineHeight: '1.4',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}>
+        {/* Content */}
+        <div style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '11px', color: '#999' }}>{product.categories?.name}</div>
+          <div style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a1a', lineHeight: '1.3', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', flex: 1 }}>
             {product.name}
-          </h3>
-
-          {/* Rating */}
-         {product.discount_ends_at && new Date(product.discount_ends_at) > new Date() && (
-  <div style={{ marginBottom: '4px' }}>
-    <div style={{ fontSize: '10px', color: '#e53935', fontWeight: '700', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#e53935" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-      LIMITED DEAL — ENDS IN:
-    </div>
-    <DiscountTimer endsAt={product.discount_ends_at} compact={true} />
-  </div>
-)}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {[1,2,3,4,5].map(star => (
-              <Star key={star} size={12} color="#ff6f00" fill={star <= 4 ? '#ff6f00' : 'none'} />
-            ))}
-            <span style={{ fontSize: '12px', color: '#999' }}>(4.0)</span>
           </div>
 
-          {/* Price */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#e53935' }}>
-  ₹{formatINR(product.sale_price)}
-</span>
-<span style={{ fontSize: '13px', color: '#999', textDecoration: 'line-through' }}>
-  ₹{formatINR(product.mrp)}
-</span>
-          </div>
-
-          {/* Free Delivery tag */}
-          {product.sale_price >= 499 && (
-            <span style={{ fontSize: '11px', color: '#2e7d32', fontWeight: '600' }}>
-              ✅ Free Delivery
-            </span>
+          {product.discount_ends_at && new Date(product.discount_ends_at) > new Date() && (
+            <DiscountTimer endsAt={product.discount_ends_at} compact={true} />
           )}
 
-          {/* Add to Cart Button */}
-          <button
-            onClick={handleAddToCart}
-            style={{
-              width: '100%',
-              background: adding ? '#2e7d32' : '#e53935',
-              color: 'white',
-              border: 'none',
-              padding: '10px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              marginTop: 'auto',
-              transition: 'background 0.3s'
-            }}
-          >
-            <ShoppingCart size={15} />
-            {adding ? '✓ Added!' : 'Add to Cart'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+            <span style={{ fontSize: '16px', fontWeight: '800', color: '#e53935' }}>{formatINR(product.sale_price)}</span>
+            {product.mrp > product.sale_price && (
+              <span style={{ fontSize: '11px', color: '#bbb', textDecoration: 'line-through' }}>{formatINR(product.mrp)}</span>
+            )}
+          </div>
         </div>
+      </Link>
+
+      {/* Add to Cart */}
+      <div style={{ padding: '0 12px 12px' }}>
+        <button onClick={handleAddToCart}
+          disabled={product.stock === 0}
+          style={{
+            width: '100%', background: product.stock === 0 ? '#f5f5f5' : '#e53935',
+            color: product.stock === 0 ? '#999' : 'white', border: 'none',
+            padding: '9px', borderRadius: '8px', fontSize: '13px',
+            fontWeight: '700', cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={e => { if (product.stock > 0) e.currentTarget.style.background = '#c62828' }}
+          onMouseLeave={e => { if (product.stock > 0) e.currentTarget.style.background = '#e53935' }}>
+          {product.stock === 0 ? 'Out of Stock' : '🛒 Add to Cart'}
+        </button>
       </div>
-    </Link>
+    </div>
   )
-}
+})
+
+export default ProductCard

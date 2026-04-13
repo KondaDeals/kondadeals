@@ -8,10 +8,11 @@ import Footer from '@/components/Footer'
 import useStore from '@/lib/store'
 import toast from 'react-hot-toast'
 import { Grid, List, SlidersHorizontal, X, ChevronDown } from 'lucide-react'
+import { fetchProductsBySlug } from '@/lib/fetchers'
+import { usePrefetch } from '@/lib/usePrefetch'
 
 const formatINR = n => n?.toLocaleString('en-IN') || '0'
 
-// Memoized product card for collections
 const CollectionCard = memo(({ product, viewMode, onAddToCart }) => {
   const [imgError, setImgError] = useState(false)
   const discount = Math.round(((product.mrp - product.sale_price) / product.mrp) * 100)
@@ -87,7 +88,6 @@ const CollectionCard = memo(({ product, viewMode, onAddToCart }) => {
 })
 CollectionCard.displayName = 'CollectionCard'
 
-// Skeleton
 const Skeleton = () => (
   <div style={{ background: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
     <div style={{ aspectRatio: '1', background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
@@ -103,6 +103,7 @@ export default function CollectionsPage() {
   const { slug } = useParams()
   const router = useRouter()
   const { addToCart } = useStore()
+  const { prefetchCategory } = usePrefetch()
 
   const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -117,110 +118,34 @@ export default function CollectionsPage() {
   const isBestSellers = slug === 'best-sellers'
 
   useEffect(() => {
-  setLoading(true)
-  setError(false)
-  setAllProducts([])
-  fetchProducts()
-}, [slug])
-
-const fetchProducts = async () => {
-  setLoading(true)
-  setError(false)
-
-  try {
-    let data = []
-    let catName = ''
-
-    if (slug === 'all') {
-      catName = 'All Products'
-      const { data: res, error } = await supabase
-        .from('products')
-        .select('id,name,slug,mrp,sale_price,images,is_trending,stock,category_id,categories(name,slug)')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(80)
-      if (error) throw error
-      data = res || []
-
-    } else if (slug === 'new-arrivals') {
-      catName = 'New Arrivals'
-      const { data: res, error } = await supabase
-        .from('products')
-        .select('id,name,slug,mrp,sale_price,images,is_trending,stock,category_id,categories(name,slug)')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(40)
-      if (error) throw error
-      data = res || []
-
-    } else if (slug === 'best-sellers') {
-      catName = 'Best Sellers'
-      const { data: res, error } = await supabase
-        .from('products')
-        .select('id,name,slug,mrp,sale_price,images,is_trending,stock,category_id,categories(name,slug)')
-        .eq('is_active', true)
-        .eq('is_featured', true)
-        .order('created_at', { ascending: false })
-        .limit(40)
-      if (error) throw error
-      data = res || []
-
-    } else {
-      // Category page — get category id first
-      const { data: cat } = await supabase
-        .from('categories')
-        .select('id,name')
-        .eq('slug', slug)
-        .maybeSingle()
-
-      if (cat) {
-        catName = cat.name
-        const { data: res, error } = await supabase
-          .from('products')
-          .select('id,name,slug,mrp,sale_price,images,is_trending,stock,category_id,categories(name,slug)')
-          .eq('is_active', true)
-          .eq('category_id', cat.id)
-          .order('created_at', { ascending: false })
-          .limit(60)
-        if (error) throw error
-        data = res || []
-      } else {
-        // Category not found — show all products
-        catName = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-        const { data: res } = await supabase
-          .from('products')
-          .select('id,name,slug,mrp,sale_price,images,is_trending,stock,category_id,categories(name,slug)')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(40)
-        data = res || []
-      }
-    }
-
-    setAllProducts(data)
-    setCategoryName(catName)
+    setLoading(true)
     setError(false)
-  } catch (err) {
-    console.error('Fetch error:', err)
-    setError(true)
-  } finally {
-    setLoading(false)
-  }
-}
+    setAllProducts([])
+    fetchProducts()
+  }, [slug])
 
-const refreshInBackground = async (cacheKey) => {
-  try {
-    const res = await fetch(`/api/collections/${slug}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data.products) {
-        setCachedProducts(cacheKey, data)
-        setAllProducts(data.products)
-        if (data.categoryName) setCategoryName(data.categoryName)
-      }
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+
+    try {
+      const data = await fetchProductsBySlug(slug)
+      setAllProducts(data || [])
+
+      if (slug === 'all') setCategoryName('All Products')
+      else if (slug === 'new-arrivals') setCategoryName('New Arrivals')
+      else if (slug === 'best-sellers') setCategoryName('Best Sellers')
+      else if (data?.[0]?.categories?.name) setCategoryName(data[0].categories.name)
+      else setCategoryName(slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+
+      setError(false)
+    } catch (err) {
+      console.error(err)
+      setError(true)
+    } finally {
+      setLoading(false)
     }
-  } catch (e) {}
-}
+  }, [slug])
 
   const retryFetch = async () => {
     setLoading(true)
@@ -245,7 +170,6 @@ const refreshInBackground = async (cacheKey) => {
     toast.success('Added to cart! 🛒')
   }, [addToCart])
 
-  // Client-side filtering — no extra DB calls
   const filteredProducts = useMemo(() => {
     let result = [...allProducts]
 
@@ -266,7 +190,7 @@ const refreshInBackground = async (cacheKey) => {
       case 'price_high': result.sort((a, b) => b.sale_price - a.sale_price); break
       case 'discount': result.sort((a, b) => ((b.mrp - b.sale_price) / b.mrp) - ((a.mrp - a.sale_price) / a.mrp)); break
       case 'oldest': result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break
-      default: break // newest — already sorted from DB
+      default: break
     }
 
     return result
@@ -296,7 +220,6 @@ const refreshInBackground = async (cacheKey) => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Sort */}
             <select value={filters.sort} onChange={e => setFilters(f => ({ ...f, sort: e.target.value }))}
               style={{ padding: '8px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', background: 'white', cursor: 'pointer', outline: 'none' }}>
               <option value="newest">Newest First</option>
@@ -305,7 +228,6 @@ const refreshInBackground = async (cacheKey) => {
               <option value="discount">Most Discount</option>
             </select>
 
-            {/* Price Filter */}
             <select value={filters.price} onChange={e => setFilters(f => ({ ...f, price: e.target.value }))}
               style={{ padding: '8px 12px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', background: 'white', cursor: 'pointer', outline: 'none' }}>
               <option value="all">All Prices</option>
@@ -316,7 +238,6 @@ const refreshInBackground = async (cacheKey) => {
               <option value="above999">Above ₹999</option>
             </select>
 
-            {/* Quick filters */}
             <button onClick={() => setFilters(f => ({ ...f, inStock: !f.inStock }))}
               style={{ padding: '8px 12px', border: `1.5px solid ${filters.inStock ? '#e53935' : '#e0e0e0'}`, borderRadius: '8px', fontSize: '12px', fontWeight: '600', background: filters.inStock ? '#fff5f5' : 'white', color: filters.inStock ? '#e53935' : '#666', cursor: 'pointer' }}>
               In Stock
@@ -326,7 +247,6 @@ const refreshInBackground = async (cacheKey) => {
               On Sale
             </button>
 
-            {/* View toggle */}
             <div style={{ display: 'flex', border: '1.5px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
               <button onClick={() => setViewMode('grid')}
                 style={{ padding: '7px 10px', background: viewMode === 'grid' ? '#e53935' : 'white', color: viewMode === 'grid' ? 'white' : '#666', border: 'none', cursor: 'pointer' }}>
@@ -340,7 +260,7 @@ const refreshInBackground = async (cacheKey) => {
           </div>
         </div>
 
-        {/* Error State with Retry */}
+        {/* Error State */}
         {error && !loading && (
           <div style={{ background: '#fff5f5', border: '1px solid #ffcdd2', borderRadius: '12px', padding: '24px', textAlign: 'center', marginBottom: '20px' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>

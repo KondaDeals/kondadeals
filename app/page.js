@@ -5,6 +5,9 @@ import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { ChevronRight, Zap, TrendingUp, Star, Shield, Truck, RefreshCw, Tag } from 'lucide-react'
+import { fetchHomepageData } from '@/lib/fetchers'
+import { preload } from '@/lib/dataCache'
+import { fetchProductsBySlug } from '@/lib/fetchers'
 
 // Memoized ProductCard to prevent re-renders
 const LazyProductCard = memo(({ product }) => {
@@ -140,29 +143,26 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [displayBanners.length])
 
+// Inside component, replace fetchCriticalData:
 const fetchCriticalData = useCallback(async () => {
   try {
-    // Use cached API route instead of direct Supabase calls
-    const res = await fetch('/api/homepage', {
-      next: { revalidate: 60 },
-    })
-    const data = await res.json()
-
+    const data = await fetchHomepageData()
     if (data.banners?.length > 0) setHeroBanners(data.banners)
-    if (data.categories?.length > 0) setCategories(data.categories)
-
+    if (data.categories?.length > 0) {
+      setCategories(data.categories)
+      // Preload first 3 categories in background
+      data.categories.slice(0, 3).forEach(cat => {
+        preload(`products-${cat.slug}`, () => fetchProductsBySlug(cat.slug))
+      })
+    }
     setBannerLoaded(true)
-
-    // Set products immediately from same response
     if (data.featured?.length > 0) setFeaturedProducts(data.featured)
     if (data.trending?.length > 0) setTrendingProducts(data.trending)
     if (data.newArrivals?.length > 0) setNewArrivals(data.newArrivals)
-    if (data.trustStrips?.length > 0) setTrustStrips(data.trustStrips)
-
     setLoading(false)
   } catch (err) {
-    // Fallback to direct Supabase
-    fetchFromSupabase()
+    console.error(err)
+    setLoading(false)
   }
 }, [])
 
@@ -176,19 +176,6 @@ const fetchFromSupabase = async () => {
   setBannerLoaded(true)
 }
 
-const fetchProducts = async () => {
-  const [featured, trending, newArr, trustRes] = await Promise.all([
-    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,is_featured,discount_ends_at,categories(name)').eq('is_featured', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_trending', true).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-    supabase.from('products').select('id,name,slug,mrp,sale_price,images,is_trending,discount_ends_at,categories(name)').eq('is_active', true).order('created_at', { ascending: false }).limit(8),
-    supabase.from('trust_strips').select('*').eq('is_active', true).order('sort_order').limit(6),
-  ])
-  if (featured.data) setFeaturedProducts(featured.data)
-  if (trending.data) setTrendingProducts(trending.data)
-  if (newArr.data) setNewArrivals(newArr.data)
-  if (trustRes.data?.length > 0) setTrustStrips(trustRes.data)
-  setLoading(false)
-}
 
   const getBannerBackground = useCallback((banner) => {
     if (!banner) return '#e53935'
