@@ -124,8 +124,15 @@ product_coupon_code: p.product_coupon_code || '',
 product_coupon_type: p.product_coupon_type || 'percentage',
 product_coupon_value: p.product_coupon_value || '',
 product_coupon_min_qty: p.product_coupon_min_qty || 1,
-product_coupon_start_date: p.product_coupon_start_date || null,
-product_coupon_end_date: p.product_coupon_end_date || null,
+// product_coupon_start_date: p.product_coupon_start_date || '',
+// product_coupon_end_date: p.product_coupon_end_date || '',
+product_coupon_start_date: p.product_coupon_start_date
+  ? p.product_coupon_start_date.slice(0, 16)
+  : '',
+
+product_coupon_end_date: p.product_coupon_end_date
+  ? p.product_coupon_end_date.slice(0, 16)
+  : '',
 product_coupon_active: p.product_coupon_active !== false, is_featured: p.is_featured, is_trending: p.is_trending, is_new_arrival: p.is_new_arrival, is_active: p.is_active })
     setShowProductModal(true)
   }
