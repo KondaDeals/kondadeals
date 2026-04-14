@@ -304,7 +304,8 @@ const anyItemHasCoupon = Object.values(productCouponData).some(
                         ✕ Remove
                       </button>
                     </div>
-                  } : productCouponData[item.id]?.product_coupon_enabled && productCouponData[item.id]?.product_coupon_active ? (
+                  ) : productCouponData[item.id]?.product_coupon_enabled &&
+     productCouponData[item.id]?.product_coupon_active ? (
                     /* Coupon Input — only shown if product has coupon */
                     <div style={{ marginTop: '12px', background: '#f8f9ff', borderRadius: '10px', padding: '10px 14px', border: '1px dashed #90caf9' }}>
                       <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
