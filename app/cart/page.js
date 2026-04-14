@@ -25,11 +25,44 @@ export default function CartPage() {
 
   useEffect(() => { setMounted(true) }, [])
 
+  // Fetch fresh product coupon data for all cart items
+useEffect(() => {
+  if (!mounted || cart.length === 0) return
+  fetchCouponData()
+}, [mounted, cart.length])
+
+const [productCouponData, setProductCouponData] = useState({})
+
+const fetchCouponData = async () => {
+  try {
+    const ids = cart.map(item => item.id)
+    const { data } = await supabase
+      .from('products')
+      .select(`
+        id, product_coupon_enabled, product_coupon_code,
+        product_coupon_type, product_coupon_value,
+        product_coupon_min_qty, product_coupon_start_date,
+        product_coupon_end_date, product_coupon_active
+      `)
+      .in('id', ids)
+
+    if (data) {
+      const map = {}
+      data.forEach(p => { map[p.id] = p })
+      setProductCouponData(map)
+    }
+  } catch (err) {
+    console.error('Failed to fetch coupon data:', err)
+  }
+}
   // Total product coupon discount
   const totalProductDiscount = Object.values(productCoupons)
     .reduce((sum, c) => sum + (c.discount || 0), 0)
 
   const hasProductCoupon = totalProductDiscount > 0
+const anyItemHasCoupon = Object.values(productCouponData).some(
+  p => p.product_coupon_enabled && p.product_coupon_active
+)
 
   const subtotal = mounted ? getCartTotal() : 0
   const shipping = subtotal >= 499 ? 0 : 49
@@ -38,81 +71,73 @@ export default function CartPage() {
 
   // Apply product-level coupon
   const applyProductCoupon = useCallback(async (item) => {
-    const input = productCoupons[item.id]?.inputCode || ''
-    if (!input.trim()) return
+  const input = productCoupons[item.id]?.inputCode || ''
+  if (!input.trim()) { toast.error('Enter a coupon code'); return }
 
-    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: true, error: '' } }))
+  setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: true, error: '' } }))
 
-    try {
-      // Fetch product with coupon details
-      const { data: product } = await supabase
-        .from('products')
-        .select('product_coupon_enabled,product_coupon_code,product_coupon_type,product_coupon_value,product_coupon_min_qty,product_coupon_start_date,product_coupon_end_date,product_coupon_active')
-        .eq('id', item.id)
-        .single()
+  try {
+    // Use already-fetched coupon data
+    const product = productCouponData[item.id]
 
-      if (!product?.product_coupon_enabled || !product?.product_coupon_active) {
-        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'No coupon available for this product' } }))
-        return
-      }
-
-      if (product.product_coupon_code?.toUpperCase() !== input.toUpperCase()) {
-        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Invalid coupon code' } }))
-        return
-      }
-
-      // Check dates
-      const now = new Date()
-      if (product.product_coupon_start_date && new Date(product.product_coupon_start_date) > now) {
-        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
-        return
-      }
-      if (product.product_coupon_end_date && new Date(product.product_coupon_end_date) < now) {
-        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
-        return
-      }
-
-      // Check min quantity
-      if (item.quantity < (product.product_coupon_min_qty || 1)) {
-        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: `Minimum ${product.product_coupon_min_qty} qty required` } }))
-        return
-      }
-
-      // Calculate discount
-      const itemTotal = item.sale_price * item.quantity
-      let discountAmt = 0
-      if (product.product_coupon_type === 'percentage') {
-        discountAmt = Math.round(itemTotal * product.product_coupon_value / 100)
-      } else {
-        discountAmt = Math.min(product.product_coupon_value, itemTotal)
-      }
-
-      // If order coupon was applied, remove it (no double discount)
-      if (orderCouponApplied) {
-        setOrderDiscount(0)
-        setOrderCouponApplied('')
-        setOrderCouponCode('')
-        toast.success('Order coupon removed — product coupons take priority')
-      }
-
-      setProductCoupons(prev => ({
-        ...prev,
-        [item.id]: {
-          ...prev[item.id],
-          applied: input.toUpperCase(),
-          discount: discountAmt,
-          applying: false,
-          error: '',
-          type: product.product_coupon_type,
-          value: product.product_coupon_value,
-        }
-      }))
-      toast.success(`Coupon applied! You save ${formatINR(discountAmt)} on ${item.name}`)
-
-    } catch (err) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Failed to apply coupon' } }))
+    if (!product?.product_coupon_enabled || !product?.product_coupon_active) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'No coupon available for this product' } }))
+      return
     }
-  }, [productCoupons, orderCouponApplied])
+
+    if (product.product_coupon_code?.toUpperCase() !== input.trim().toUpperCase()) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: '❌ Invalid coupon code' } }))
+      return
+    }
+
+    // Check dates
+    const now = new Date()
+    if (product.product_coupon_start_date && new Date(product.product_coupon_start_date) > now) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
+      return
+    }
+    if (product.product_coupon_end_date && new Date(product.product_coupon_end_date) < now) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
+      return
+    }
+
+    // Check min qty
+    if (item.quantity < (product.product_coupon_min_qty || 1)) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: `Min ${product.product_coupon_min_qty} qty required` } }))
+      return
+    }
+
+    // Calculate discount
+    const itemTotal = item.sale_price * item.quantity
+    let discountAmt = 0
+    if (product.product_coupon_type === 'percentage') {
+      discountAmt = Math.round(itemTotal * product.product_coupon_value / 100)
+    } else {
+      discountAmt = Math.min(product.product_coupon_value, itemTotal)
+    }
+
+    // Remove order coupon if active
+    if (orderCouponApplied) {
+      setOrderDiscount(0); setOrderCouponApplied(''); setOrderCouponCode('')
+      toast('Order coupon removed — product coupon takes priority', { icon: 'ℹ️' })
+    }
+
+    setProductCoupons(prev => ({
+      ...prev,
+      [item.id]: {
+        ...prev[item.id],
+        applied: input.trim().toUpperCase(),
+        discount: discountAmt,
+        applying: false,
+        error: '',
+      }
+    }))
+    toast.success(`✅ Saved ${formatINR(discountAmt)} on ${item.name.substring(0, 20)}!`)
+
+  } catch (err) {
+    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Failed — try again' } }))
+  }
+}, [productCouponData, productCoupons, orderCouponApplied, formatINR])
 
   const removeProductCoupon = useCallback((itemId) => {
     setProductCoupons(prev => ({ ...prev, [itemId]: { inputCode: '', applied: '', discount: 0, error: '' } }))
@@ -279,7 +304,7 @@ export default function CartPage() {
                         ✕ Remove
                       </button>
                     </div>
-                  ) : item.product_coupon_enabled ? (
+                  } : productCouponData[item.id]?.product_coupon_enabled && productCouponData[item.id]?.product_coupon_active ? (
                     /* Coupon Input — only shown if product has coupon */
                     <div style={{ marginTop: '12px', background: '#f8f9ff', borderRadius: '10px', padding: '10px 14px', border: '1px dashed #90caf9' }}>
                       <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -337,7 +362,7 @@ export default function CartPage() {
             <h3 style={{ fontSize: '17px', fontWeight: '800', marginBottom: '18px', color: '#1a1a1a' }}>Order Summary</h3>
 
             {/* Order-level coupon — hidden when product coupon active */}
-            {!hasProductCoupon ? (
+            {!anyItemHasCoupon ? (
               <div style={{ marginBottom: '18px', background: '#f8f8f8', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: '#555', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Tag size={13} /> Order Coupon

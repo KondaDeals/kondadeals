@@ -40,25 +40,31 @@ export default function ProductPage() {
 
  const fetchProduct = async () => {
   setLoading(true)
-  // Fetch product and settings in parallel
   const [productRes, settingsRes] = await Promise.all([
-    supabase.from('products')
-      .select('id,name,slug,description,mrp,sale_price,images,is_trending,is_featured,is_new_arrival,stock,discount_ends_at,return_policy,category_id,categories(name,slug)')
+    supabase
+      .from('products')
+      .select(`
+        id, name, slug, description, mrp, sale_price,
+        images, is_trending, is_featured, is_new_arrival,
+        stock, discount_ends_at, return_policy,
+        category_id, categories(name, slug),
+        product_coupon_enabled, product_coupon_code,
+        product_coupon_type, product_coupon_value,
+        product_coupon_min_qty, product_coupon_start_date,
+        product_coupon_end_date, product_coupon_active
+      `)
       .eq('slug', slug)
       .single(),
-    supabase.from('site_settings')
+    supabase
+      .from('site_settings')
       .select('value')
       .eq('key', 'free_delivery_amount')
       .single()
   ])
-
   if (productRes.data) {
     setProduct(productRes.data)
-    // Fetch related + reviews in background (non-blocking)
-    Promise.all([
-      fetchRelated(productRes.data.category_id, productRes.data.id),
-      fetchReviews(productRes.data.id)
-    ])
+    fetchRelated(productRes.data.category_id, productRes.data.id)
+    fetchReviews(productRes.data.id)
   }
   if (settingsRes.data?.value) setFreeDeliveryAmount(parseInt(settingsRes.data.value) || 499)
   setLoading(false)
