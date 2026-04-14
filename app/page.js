@@ -324,8 +324,8 @@ const fetchFromSupabase = async () => {
           <div style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)', borderRadius: '16px', padding: '20px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <div style={{ color: '#ff6f00', fontSize: '12px', fontWeight: '700', letterSpacing: '1px' }}>LIMITED TIME OFFER</div>
-              <div style={{ color: 'white', fontSize: '20px', fontWeight: '800', marginTop: '4px' }}>Get 50% OFF on your first order!</div>
-              <div style={{ color: '#ccc', fontSize: '13px', marginTop: '4px' }}>Use code: <span style={{ color: '#ff6f00', fontWeight: '800', fontSize: '17px', letterSpacing: '2px' }}>KONDA50</span></div>
+              <div style={{ color: 'white', fontSize: '20px', fontWeight: '800', marginTop: '4px' }}>Get Up to 50% OFF on selected products!</div>
+              <div style={{ color: '#ccc', fontSize: '13px', marginTop: '4px' }}>Use code: <span style={{ color: '#ff6f00', fontWeight: '800', fontSize: '17px', letterSpacing: '2px' }}>LOVEKONDA</span></div>
             </div>
             <Link href="/collections/all">
               <button style={{ background: '#e53935', color: 'white', border: 'none', padding: '12px 28px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>
