@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import useStore from '@/lib/store'
 import toast from 'react-hot-toast'
-import { Trash2, ShoppingBag, Tag, Truck, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trash2, ShoppingBag, Tag, Truck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatINR } from '@/lib/currency'
 
@@ -19,206 +19,108 @@ export default function CartPage() {
   const [orderDiscount, setOrderDiscount] = useState(0)
   const [orderCouponApplied, setOrderCouponApplied] = useState('')
   const [applyingOrder, setApplyingOrder] = useState(false)
-
-  // Product-level coupons: { [productId]: { code, inputCode, discount, applied, applying, error } }
   const [productCoupons, setProductCoupons] = useState({})
+  const [productCouponData, setProductCouponData] = useState({})
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Fetch fresh product coupon data for all cart items
-useEffect(() => {
-  if (!mounted || cart.length === 0) return
-  fetchCouponData()
-}, [mounted, cart.length])
+  useEffect(() => {
+    if (!mounted || cart.length === 0) return
+    fetchCouponData()
+  }, [mounted, cart.length])
 
-const [productCouponData, setProductCouponData] = useState({})
-
-const fetchCouponData = async () => {
-  try {
-    const ids = cart.map(item => item.id)
-    const { data } = await supabase
-      .from('products')
-      .select(`
-        id, product_coupon_enabled, product_coupon_code,
-        product_coupon_type, product_coupon_value,
-        product_coupon_min_qty, product_coupon_start_date,
-        product_coupon_end_date, product_coupon_active
-      `)
-      .in('id', ids)
-
-    if (data) {
-      const map = {}
-      data.forEach(p => { map[p.id] = p })
-      setProductCouponData(map)
-    }
-  } catch (err) {
-    console.error('Failed to fetch coupon data:', err)
+  const fetchCouponData = async () => {
+    try {
+      const ids = cart.map(item => item.id)
+      const { data } = await supabase
+        .from('products')
+        .select('id,product_coupon_enabled,product_coupon_code,product_coupon_type,product_coupon_value,product_coupon_min_qty,product_coupon_start_date,product_coupon_end_date,product_coupon_active')
+        .in('id', ids)
+      if (data) {
+        const map = {}
+        data.forEach(p => { map[p.id] = p })
+        setProductCouponData(map)
+      }
+    } catch (err) { console.error(err) }
   }
-}
-  // Total product coupon discount
-  const totalProductDiscount = Object.values(productCoupons)
-    .reduce((sum, c) => sum + (c.discount || 0), 0)
 
+  const totalProductDiscount = Object.values(productCoupons).reduce((s, c) => s + (c.discount || 0), 0)
   const hasProductCoupon = totalProductDiscount > 0
-const anyItemHasCoupon = Object.values(productCouponData).some(
-  p => p.product_coupon_enabled && p.product_coupon_active
-)
-
   const subtotal = mounted ? getCartTotal() : 0
   const shipping = subtotal >= 499 ? 0 : 49
   const effectiveOrderDiscount = hasProductCoupon ? 0 : orderDiscount
   const total = subtotal + shipping - totalProductDiscount - effectiveOrderDiscount
 
-  // Apply product-level coupon
   const applyProductCoupon = useCallback(async (item) => {
-  const input = productCoupons[item.id]?.inputCode || ''
-  if (!input.trim()) { toast.error('Enter a coupon code'); return }
-
-  setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: true, error: '' } }))
-
-  try {
-    // Use already-fetched coupon data
-    const product = productCouponData[item.id]
-
-    // Debug log — remove after fixing
-console.log('Validating coupon for:', item.name)
-console.log('Product coupon data:', product)
-console.log('Entered code:', input.trim().toUpperCase())
-console.log('Expected code:', product?.product_coupon_code?.toUpperCase())
-
-    if (!product?.product_coupon_enabled || !product?.product_coupon_active) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'No coupon available for this product' } }))
-      return
-    }
-
-    if (product.product_coupon_code?.toUpperCase() !== input.trim().toUpperCase()) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: '❌ Invalid coupon code' } }))
-      return
-    }
-
-    // Check dates safely — handle timezone formats like +00:00
-const now = Date.now()
-
-if (product.product_coupon_start_date) {
-  try {
-    const start = Date.parse(product.product_coupon_start_date)
-    if (!isNaN(start) && start > now) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
-      return
-    }
-  } catch (e) { /* ignore date parse errors */ }
-}
-
-if (product.product_coupon_end_date) {
-  try {
-    const end = Date.parse(product.product_coupon_end_date)
-    if (!isNaN(end) && end < now) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
-      return
-    }
-  } catch (e) { /* ignore date parse errors */ }
-}
-
-    // Check min qty
-    if (item.quantity < (product.product_coupon_min_qty || 1)) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: `Min ${product.product_coupon_min_qty} qty required` } }))
-      return
-    }
-
-    // Calculate discount
-    const itemTotal = item.sale_price * item.quantity
-    let discountAmt = 0
-    if (product.product_coupon_type === 'percentage') {
-      discountAmt = Math.round(itemTotal * product.product_coupon_value / 100)
-    } else {
-      discountAmt = Math.min(product.product_coupon_value, itemTotal)
-    }
-
-    // Remove order coupon if active
-    if (orderCouponApplied) {
-      setOrderDiscount(0); setOrderCouponApplied(''); setOrderCouponCode('')
-      toast('Order coupon removed — product coupon takes priority', { icon: 'ℹ️' })
-    }
-
-    setProductCoupons(prev => ({
-      ...prev,
-      [item.id]: {
-        ...prev[item.id],
-        applied: input.trim().toUpperCase(),
-        discount: discountAmt,
-        applying: false,
-        error: '',
+    const input = (productCoupons[item.id]?.inputCode || '').trim()
+    if (!input) { toast.error('Enter a coupon code'); return }
+    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: true, error: '' } }))
+    try {
+      const product = productCouponData[item.id]
+      if (!product?.product_coupon_enabled || !product?.product_coupon_active) {
+        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'No coupon for this product' } }))
+        return
       }
-    }))
-    toast.success(`✅ Saved ${formatINR(discountAmt)} on ${item.name.substring(0, 20)}!`)
+      if (product.product_coupon_code?.toUpperCase() !== input.toUpperCase()) {
+        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Invalid coupon code' } }))
+        return
+      }
+      const now = Date.now()
+      if (product.product_coupon_start_date) {
+        try { const s = Date.parse(product.product_coupon_start_date); if (!isNaN(s) && s > now) { setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } })); return } } catch (e) {}
+      }
+      if (product.product_coupon_end_date) {
+        try { const e = Date.parse(product.product_coupon_end_date); if (!isNaN(e) && e < now) { setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon expired' } })); return } } catch (e) {}
+      }
+      if (item.quantity < (product.product_coupon_min_qty || 1)) {
+        setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: `Min qty: ${product.product_coupon_min_qty}` } })); return
+      }
+      const itemTotal = item.sale_price * item.quantity
+      const discountAmt = product.product_coupon_type === 'percentage'
+        ? Math.round(itemTotal * product.product_coupon_value / 100)
+        : Math.min(product.product_coupon_value, itemTotal)
 
-  } catch (err) {
-    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Failed — try again' } }))
-  }
-}, [productCouponData, productCoupons, orderCouponApplied, formatINR])
+      if (orderCouponApplied) { setOrderDiscount(0); setOrderCouponApplied(''); setOrderCouponCode('') }
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applied: input.toUpperCase(), discount: discountAmt, applying: false, error: '' } }))
+      toast.success(`Saved ${formatINR(discountAmt)}!`)
+    } catch { setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Failed — try again' } })) }
+  }, [productCouponData, productCoupons, orderCouponApplied])
 
-  const removeProductCoupon = useCallback((itemId) => {
-    setProductCoupons(prev => ({ ...prev, [itemId]: { inputCode: '', applied: '', discount: 0, error: '' } }))
-  }, [])
+  const removeProductCoupon = (id) => setProductCoupons(prev => ({ ...prev, [id]: { inputCode: '', applied: '', discount: 0, error: '' } }))
 
-  // Apply order-level coupon
   const applyOrderCoupon = async () => {
     if (!orderCouponCode.trim()) return
-    if (hasProductCoupon) {
-      toast.error('Remove product coupons first to use an order coupon')
-      return
-    }
+    if (hasProductCoupon) { toast.error('Remove product coupons first'); return }
     setApplyingOrder(true)
     try {
-      const { data } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', orderCouponCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
-
-      if (!data) { toast.error('Invalid or expired coupon'); setApplyingOrder(false); return }
-      if (subtotal < (data.min_order_amount || 0)) {
-        toast.error(`Minimum order ${formatINR(data.min_order_amount)} required`)
-        setApplyingOrder(false); return
-      }
-
-      let discountAmt = 0
-      if (data.discount_type === 'percentage') {
-        discountAmt = Math.round(subtotal * data.discount_value / 100)
-      } else {
-        discountAmt = data.discount_value
-      }
-      setOrderDiscount(discountAmt)
-      setOrderCouponApplied(data.code)
-      toast.success(`Coupon applied! You save ${formatINR(discountAmt)}`)
-    } catch {
-      toast.error('Invalid coupon code')
-    }
+      const { data } = await supabase.from('coupons').select('*').eq('code', orderCouponCode.toUpperCase()).eq('is_active', true).single()
+      if (!data) { toast.error('Invalid coupon'); setApplyingOrder(false); return }
+      if (subtotal < (data.min_order_amount || 0)) { toast.error(`Min order ${formatINR(data.min_order_amount)}`); setApplyingOrder(false); return }
+      const discountAmt = data.discount_type === 'percentage' ? Math.round(subtotal * data.discount_value / 100) : data.discount_value
+      setOrderDiscount(discountAmt); setOrderCouponApplied(data.code)
+      toast.success(`Saved ${formatINR(discountAmt)}!`)
+    } catch { toast.error('Invalid coupon') }
     setApplyingOrder(false)
   }
 
   const handleCheckout = () => {
     const { user } = useStore.getState()
-    if (!user) { toast.error('Please login to checkout'); router.push('/login?redirect=/checkout'); return }
+    if (!user) { toast.error('Please login'); router.push('/login?redirect=/checkout'); return }
     router.push('/checkout')
   }
 
-  if (!mounted) return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}><Navbar />
-      <div style={{ textAlign: 'center', padding: '80px', color: '#999' }}>Loading cart...</div>
-    </div>
-  )
+  if (!mounted) return <div style={{ minHeight: '100vh' }}><Navbar /><div style={{ padding: '60px 20px', textAlign: 'center', color: '#999' }}>Loading...</div></div>
 
   if (cart.length === 0) return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}><Navbar />
-      <div style={{ maxWidth: '600px', margin: '80px auto', padding: '0 20px', textAlign: 'center' }}>
-        <div style={{ fontSize: '80px', marginBottom: '24px' }}>🛒</div>
-        <h2 style={{ fontSize: '26px', fontWeight: '800', marginBottom: '8px' }}>Your cart is empty</h2>
-        <p style={{ color: '#999', marginBottom: '32px' }}>Add some amazing products!</p>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      <Navbar />
+      <div style={{ maxWidth: '480px', margin: '60px auto', padding: '0 20px', textAlign: 'center' }}>
+        <div style={{ fontSize: '72px', marginBottom: '20px' }}>🛒</div>
+        <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '8px' }}>Cart is empty</h2>
+        <p style={{ color: '#999', marginBottom: '28px' }}>Add products to get started</p>
         <Link href="/collections/all">
-          <button style={{ background: '#e53935', color: 'white', border: 'none', padding: '14px 40px', borderRadius: '10px', fontSize: '16px', fontWeight: '700', cursor: 'pointer' }}>
-            Continue Shopping
+          <button style={{ background: '#e53935', color: 'white', border: 'none', padding: '14px 36px', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', width: '100%' }}>
+            Browse Products
           </button>
         </Link>
       </div>
@@ -228,199 +130,279 @@ if (product.product_coupon_end_date) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      <style>{`
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        * { box-sizing: border-box; }
+        .cart-grid {
+          display: grid;
+          grid-template-columns: 1fr 340px;
+          gap: 20px;
+          align-items: start;
+        }
+        @media (max-width: 768px) {
+          .cart-grid { grid-template-columns: 1fr !important; }
+          .cart-summary-sticky { position: static !important; }
+        }
+        .coupon-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        @media (max-width: 400px) {
+          .coupon-row { flex-direction: column; align-items: stretch; }
+          .coupon-row input { width: 100% !important; }
+          .coupon-row button { width: 100% !important; }
+        }
+        .item-row {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        @media (max-width: 360px) {
+          .item-row { gap: 8px; }
+          .item-image { width: 72px !important; height: 72px !important; }
+        }
+      `}</style>
+
       <Navbar />
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ShoppingBag size={26} color="#e53935" />
-          My Cart ({cart.length} {cart.length === 1 ? 'item' : 'items'})
-        </h1>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '20px 12px' }}>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: '20px', alignItems: 'start' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+          <ShoppingBag size={24} color="#e53935" />
+          <h1 style={{ fontSize: '22px', fontWeight: '800', margin: 0 }}>
+            My Cart <span style={{ fontSize: '16px', color: '#999', fontWeight: '500' }}>({cart.length} {cart.length === 1 ? 'item' : 'items'})</span>
+          </h1>
+        </div>
 
-          {/* ===== CART ITEMS ===== */}
+        <div className="cart-grid">
+
+          {/* ===== LEFT: CART ITEMS ===== */}
           <div>
             {cart.map(item => {
               const pc = productCoupons[item.id] || {}
+              const pcd = productCouponData[item.id] || {}
               const itemDiscount = pc.discount || 0
-              const itemFinalPrice = (item.sale_price * item.quantity) - itemDiscount
+              const showCouponInput = pcd.product_coupon_enabled && pcd.product_coupon_active && !pc.applied
 
               return (
-                <div key={item.id} style={{ background: 'white', borderRadius: '14px', padding: '16px', marginBottom: '12px', border: `1px solid ${itemDiscount > 0 ? '#bbdefb' : '#f0f0f0'}`, transition: 'border-color 0.2s' }}>
-                  <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                <div key={item.id} style={{
+                  background: 'white', borderRadius: '14px',
+                  padding: '14px', marginBottom: '10px',
+                  border: `1px solid ${itemDiscount > 0 ? '#bbdefb' : '#f0f0f0'}`,
+                  overflow: 'hidden'
+                }}>
+
+                  {/* Product Row */}
+                  <div className="item-row">
                     {/* Image */}
-                    <Link href={`/product/${item.slug}`}>
-                      <div style={{ width: '88px', height: '88px', flexShrink: 0, background: '#f8f8f8', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Link href={`/product/${item.slug}`} style={{ flexShrink: 0 }}>
+                      <div className="item-image" style={{ width: '82px', height: '82px', background: '#f8f8f8', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {item.images?.[0]
                           ? <img src={item.images[0]} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                          : <span style={{ fontSize: '32px' }}>🛍️</span>}
+                          : <span style={{ fontSize: '28px' }}>🛍️</span>}
                       </div>
                     </Link>
 
-                    {/* Details */}
+                    {/* Info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Link href={`/product/${item.slug}`} style={{ textDecoration: 'none' }}>
-                        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a', marginBottom: '4px', lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.name}
-                        </h3>
-                      </Link>
+                      <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#1a1a1a', marginBottom: '4px', lineHeight: '1.3', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {item.name}
+                      </h3>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '17px', fontWeight: '800', color: '#e53935' }}>{formatINR(item.sale_price)}</span>
+                      {/* Price row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#e53935' }}>{formatINR(item.sale_price)}</span>
                         {item.mrp > item.sale_price && (
-                          <span style={{ fontSize: '12px', color: '#999', textDecoration: 'line-through' }}>{formatINR(item.mrp)}</span>
+                          <span style={{ fontSize: '11px', color: '#bbb', textDecoration: 'line-through' }}>{formatINR(item.mrp)}</span>
                         )}
-                        <span style={{ fontSize: '11px', color: '#2e7d32', fontWeight: '600' }}>
-                          ({Math.round(((item.mrp - item.sale_price) / item.mrp) * 100)}% off)
-                        </span>
                       </div>
 
-                      {/* Quantity + Remove */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      {/* Qty + Remove */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
                           <button onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            style={{ padding: '5px 12px', background: '#f5f5f5', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: '700', color: '#333' }}>−</button>
-                          <span style={{ padding: '5px 14px', fontWeight: '700', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{item.quantity}</span>
+                            style={{ width: '32px', height: '32px', background: '#f5f5f5', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                          <span style={{ minWidth: '28px', textAlign: 'center', fontWeight: '700', fontSize: '14px' }}>{item.quantity}</span>
                           <button onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            style={{ padding: '5px 12px', background: '#f5f5f5', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: '700', color: '#333' }}>+</button>
+                            style={{ width: '32px', height: '32px', background: '#f5f5f5', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                         </div>
                         <button onClick={() => { removeFromCart(item.id); toast.success('Removed') }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53935', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '600' }}>
-                          <Trash2 size={14} /> Remove
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53935', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontWeight: '600', padding: '4px 0' }}>
+                          <Trash2 size={13} /> Remove
                         </button>
-                      </div>
-                    </div>
 
-                    {/* Item Total */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      {itemDiscount > 0 ? (
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#999', textDecoration: 'line-through' }}>{formatINR(item.sale_price * item.quantity)}</div>
-                          <div style={{ fontSize: '17px', fontWeight: '800', color: '#1565c0' }}>{formatINR(itemFinalPrice)}</div>
-                          <div style={{ fontSize: '11px', color: '#2e7d32', fontWeight: '700', marginTop: '2px' }}>-{formatINR(itemDiscount)}</div>
+                        {/* Item total - right aligned */}
+                        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                          {itemDiscount > 0 ? (
+                            <div>
+                              <div style={{ fontSize: '11px', color: '#bbb', textDecoration: 'line-through' }}>{formatINR(item.sale_price * item.quantity)}</div>
+                              <div style={{ fontSize: '15px', fontWeight: '800', color: '#1565c0' }}>{formatINR(item.sale_price * item.quantity - itemDiscount)}</div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '15px', fontWeight: '800', color: '#1a1a1a' }}>{formatINR(item.sale_price * item.quantity)}</div>
+                          )}
                         </div>
-                      ) : (
-                        <div style={{ fontSize: '17px', fontWeight: '800', color: '#1a1a1a' }}>{formatINR(item.sale_price * item.quantity)}</div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Product Coupon Section */}
-                  {pc.applied ? (
-                    /* Coupon Applied State */
-                    <div style={{ marginTop: '12px', background: 'linear-gradient(135deg, #e3f2fd, #e8f5e9)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #bbdefb' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '16px' }}>🏷️</span>
-                        <div>
-                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#1565c0' }}>{pc.applied} applied!</div>
-                          <div style={{ fontSize: '11px', color: '#2e7d32', fontWeight: '600' }}>
-                            You save {formatINR(itemDiscount)} on this item
-                          </div>
+                  {/* Product Coupon — Applied State */}
+                  {pc.applied && (
+                    <div style={{ marginTop: '10px', background: 'linear-gradient(135deg, #e3f2fd, #e8f5e9)', borderRadius: '8px', padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #bbdefb', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                        <span style={{ fontSize: '16px', flexShrink: 0 }}>🏷️</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#1565c0', whiteSpace: 'nowrap' }}>{pc.applied} applied!</div>
+                          <div style={{ fontSize: '11px', color: '#2e7d32', fontWeight: '600' }}>Saved {formatINR(itemDiscount)}</div>
                         </div>
                       </div>
                       <button onClick={() => removeProductCoupon(item.id)}
-                        style={{ background: 'none', border: 'none', color: '#e53935', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                        style={{ background: '#ffebee', border: 'none', color: '#e53935', cursor: 'pointer', fontSize: '11px', fontWeight: '700', padding: '4px 8px', borderRadius: '6px', flexShrink: 0 }}>
                         ✕ Remove
                       </button>
                     </div>
-                  ) : productCouponData[item.id]?.product_coupon_enabled &&
-     productCouponData[item.id]?.product_coupon_active ? (
-                    /* Coupon Input — only shown if product has coupon */
-                    <div style={{ marginTop: '12px', background: '#f8f9ff', borderRadius: '10px', padding: '10px 14px', border: '1px dashed #90caf9' }}>
-                      <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  )}
+
+                  {/* Product Coupon — Input State */}
+                  {showCouponInput && (
+                    <div style={{ marginTop: '10px', background: '#f0f4ff', borderRadius: '10px', padding: '10px 12px', border: '1px dashed #90caf9' }}>
+                      <div style={{ fontSize: '11px', color: '#1565c0', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         🏷️ Coupon available for this product
                       </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+
+                      {/* Coupon input + button */}
+                      <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
                         <input
                           type="text"
                           value={pc.inputCode || ''}
                           onChange={e => setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], inputCode: e.target.value.toUpperCase(), error: '' } }))}
-                          placeholder="Enter product coupon"
+                          placeholder="Enter coupon code"
                           onKeyPress={e => e.key === 'Enter' && applyProductCoupon(item)}
-                          style={{ flex: 1, padding: '7px 10px', border: '1.5px solid #90caf9', borderRadius: '7px', fontSize: '13px', outline: 'none', fontWeight: '600', letterSpacing: '0.5px', background: 'white' }}
-                          onFocus={e => e.target.style.borderColor = '#1565c0'}
-                          onBlur={e => e.target.style.borderColor = '#90caf9'}
+                          style={{
+                            flex: 1, minWidth: 0,
+                            padding: '9px 10px',
+                            border: '1.5px solid #90caf9',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            outline: 'none',
+                            fontWeight: '600',
+                            letterSpacing: '0.5px',
+                            background: 'white',
+                            width: '100%'
+                          }}
                         />
-                        <button onClick={() => applyProductCoupon(item)}
+                        <button
+                          onClick={() => applyProductCoupon(item)}
                           disabled={pc.applying}
-                          style={{ background: '#1565c0', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          style={{
+                            background: pc.applying ? '#90caf9' : '#1565c0',
+                            color: 'white', border: 'none',
+                            padding: '9px 16px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            cursor: pc.applying ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}>
                           {pc.applying ? '...' : 'Apply'}
                         </button>
                       </div>
+
                       {pc.error && (
-                        <div style={{ fontSize: '11px', color: '#e53935', marginTop: '4px', fontWeight: '600' }}>❌ {pc.error}</div>
+                        <div style={{ fontSize: '11px', color: '#e53935', marginTop: '6px', fontWeight: '600' }}>
+                          ❌ {pc.error}
+                        </div>
                       )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               )
             })}
 
-            {/* Free delivery progress */}
-            {subtotal < 499 ? (
-              <div style={{ background: '#fff3e0', border: '1px dashed #ff6f00', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Truck size={18} color="#ff6f00" />
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '13px', color: '#e65100', fontWeight: '600' }}>
-                    Add {formatINR(499 - subtotal)} more for FREE delivery!
+            {/* Free Delivery Banner */}
+            <div style={{
+              borderRadius: '10px', padding: '12px 14px',
+              display: 'flex', alignItems: 'center', gap: '10px',
+              background: subtotal >= 499 ? '#e8f5e9' : '#fff3e0',
+              border: `1px dashed ${subtotal >= 499 ? '#2e7d32' : '#ff6f00'}`,
+              marginBottom: '4px'
+            }}>
+              <Truck size={18} color={subtotal >= 499 ? '#2e7d32' : '#ff6f00'} style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {subtotal >= 499 ? (
+                  <span style={{ fontSize: '13px', color: '#1b5e20', fontWeight: '700' }}>
+                    🎉 You qualify for FREE delivery!
                   </span>
-                  <div style={{ background: '#ffe0b2', borderRadius: '4px', height: '4px', marginTop: '6px', overflow: 'hidden' }}>
-                    <div style={{ background: '#ff6f00', height: '100%', width: `${(subtotal / 499) * 100}%`, borderRadius: '4px', transition: 'width 0.3s' }} />
+                ) : (
+                  <div>
+                    <span style={{ fontSize: '13px', color: '#e65100', fontWeight: '600' }}>
+                      Add {formatINR(499 - subtotal)} more for FREE delivery
+                    </span>
+                    <div style={{ background: '#ffe0b2', borderRadius: '4px', height: '4px', marginTop: '6px', overflow: 'hidden' }}>
+                      <div style={{ background: '#ff6f00', height: '100%', width: `${Math.min((subtotal / 499) * 100, 100)}%`, borderRadius: '4px', transition: 'width 0.3s' }} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-            ) : (
-              <div style={{ background: '#e8f5e9', border: '1px dashed #2e7d32', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Truck size={18} color="#2e7d32" />
-                <span style={{ fontSize: '13px', color: '#1b5e20', fontWeight: '600' }}>🎉 You qualify for FREE delivery!</span>
-              </div>
-            )}
+            </div>
           </div>
 
-          {/* ===== ORDER SUMMARY ===== */}
-          <div style={{ background: 'white', borderRadius: '16px', padding: '22px', border: '1px solid #f0f0f0', position: 'sticky', top: '80px' }}>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', marginBottom: '18px', color: '#1a1a1a' }}>Order Summary</h3>
+          {/* ===== RIGHT: ORDER SUMMARY ===== */}
+          <div className="cart-summary-sticky" style={{ background: 'white', borderRadius: '16px', padding: '20px', border: '1px solid #f0f0f0', position: 'sticky', top: '80px' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', marginBottom: '16px', color: '#1a1a1a' }}>Order Summary</h3>
 
-            {/* Order-level coupon — hidden when product coupon active */}
+            {/* Order Coupon */}
             {!hasProductCoupon ? (
-              <div style={{ marginBottom: '18px', background: '#f8f8f8', borderRadius: '10px', padding: '12px' }}>
+              <div style={{ marginBottom: '16px', background: '#f8f8f8', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: '#555', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Tag size={13} /> Order Coupon
                 </div>
                 {orderCouponApplied ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e8f5e9', padding: '8px 12px', borderRadius: '8px' }}>
-                    <div>
-                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#2e7d32' }}>{orderCouponApplied} ✓</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#e8f5e9', padding: '8px 10px', borderRadius: '8px', gap: '8px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#2e7d32', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{orderCouponApplied} ✓</div>
                       <div style={{ fontSize: '11px', color: '#2e7d32' }}>Saving {formatINR(effectiveOrderDiscount)}</div>
                     </div>
                     <button onClick={() => { setOrderDiscount(0); setOrderCouponApplied(''); setOrderCouponCode('') }}
-                      style={{ background: 'none', border: 'none', color: '#e53935', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>✕</button>
+                      style={{ background: 'none', border: 'none', color: '#e53935', cursor: 'pointer', fontSize: '12px', fontWeight: '700', flexShrink: 0 }}>✕</button>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input type="text" value={orderCouponCode}
+                    <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                      <input
+                        type="text"
+                        value={orderCouponCode}
                         onChange={e => setOrderCouponCode(e.target.value.toUpperCase())}
                         onKeyPress={e => e.key === 'Enter' && applyOrderCoupon()}
                         placeholder="Enter coupon code"
-                        style={{ flex: 1, padding: '8px 10px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', fontWeight: '600', letterSpacing: '0.5px' }}
-                        onFocus={e => e.target.style.borderColor = '#e53935'}
-                        onBlur={e => e.target.style.borderColor = '#e0e0e0'}
+                        style={{
+                          flex: 1, minWidth: 0,
+                          padding: '8px 10px',
+                          border: '1.5px solid #e0e0e0',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          outline: 'none',
+                          background: 'white',
+                          fontWeight: '600'
+                        }}
                       />
                       <button onClick={applyOrderCoupon} disabled={applyingOrder}
-                        style={{ background: '#e53935', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+                        style={{ background: '#e53935', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 }}>
                         {applyingOrder ? '...' : 'Apply'}
                       </button>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>Try: KONDA50, SAVE100, WELCOME20</div>
+                    <div style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>Try: KONDA50, SAVE100</div>
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ marginBottom: '18px', background: '#e3f2fd', borderRadius: '10px', padding: '10px 12px', border: '1px solid #90caf9' }}>
+              <div style={{ marginBottom: '16px', background: '#e3f2fd', borderRadius: '10px', padding: '10px 12px', border: '1px solid #90caf9' }}>
                 <div style={{ fontSize: '12px', color: '#1565c0', fontWeight: '700' }}>
-                  🏷️ Product coupons active — order coupon disabled
+                  🏷️ Product coupon applied
                 </div>
-                <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Remove product coupons to use an order coupon</div>
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Order coupon disabled</div>
               </div>
             )}
 
@@ -431,16 +413,18 @@ if (product.product_coupon_end_date) {
                 <span style={{ fontWeight: '600' }}>{formatINR(subtotal)}</span>
               </div>
 
-              {/* Product discount breakdown */}
+              {/* Product discounts */}
               {totalProductDiscount > 0 && (
-                <div style={{ background: '#e3f2fd', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ background: '#e3f2fd', borderRadius: '8px', padding: '8px 10px' }}>
                   {cart.map(item => {
                     const d = productCoupons[item.id]?.discount || 0
                     if (!d) return null
                     return (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                        <span style={{ color: '#1565c0' }}>🏷️ {productCoupons[item.id]?.applied} ({item.name.substring(0, 18)}...)</span>
-                        <span style={{ fontWeight: '700', color: '#1565c0' }}>-{formatINR(d)}</span>
+                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px', gap: '8px' }}>
+                        <span style={{ color: '#1565c0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          🏷️ {productCoupons[item.id]?.applied}
+                        </span>
+                        <span style={{ fontWeight: '700', color: '#1565c0', flexShrink: 0 }}>-{formatINR(d)}</span>
                       </div>
                     )
                   })}
@@ -451,10 +435,9 @@ if (product.product_coupon_end_date) {
                 </div>
               )}
 
-              {/* Order coupon discount */}
               {effectiveOrderDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span style={{ color: '#2e7d32' }}>🏷️ Coupon ({orderCouponApplied})</span>
+                  <span style={{ color: '#2e7d32' }}>🏷️ {orderCouponApplied}</span>
                   <span style={{ fontWeight: '700', color: '#2e7d32' }}>-{formatINR(effectiveOrderDiscount)}</span>
                 </div>
               )}
@@ -466,37 +449,31 @@ if (product.product_coupon_end_date) {
                 </span>
               </div>
 
-              {/* Total savings pill */}
-              {(totalProductDiscount + effectiveOrderDiscount + (shipping === 0 && subtotal > 0 ? 40 : 0)) > 0 && (
-                <div style={{ background: 'linear-gradient(135deg, #e8f5e9, #f1f8e9)', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {(totalProductDiscount + effectiveOrderDiscount) > 0 && (
+                <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '8px 10px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '12px', color: '#2e7d32', fontWeight: '700' }}>💰 Total Savings</span>
-                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#2e7d32' }}>
-                    -{formatINR(totalProductDiscount + effectiveOrderDiscount + (shipping === 0 && subtotal > 0 ? 40 : 0))}
-                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#2e7d32' }}>-{formatINR(totalProductDiscount + effectiveOrderDiscount)}</span>
                 </div>
               )}
 
-              {/* Grand Total */}
               <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '16px', fontWeight: '800', color: '#1a1a1a' }}>Grand Total</span>
+                <span style={{ fontSize: '16px', fontWeight: '800' }}>Total</span>
                 <span style={{ fontSize: '22px', fontWeight: '900', color: '#e53935' }}>{formatINR(total)}</span>
               </div>
             </div>
 
+            {/* Checkout Button */}
             <button onClick={handleCheckout}
-              style={{ width: '100%', background: 'linear-gradient(135deg, #e53935, #c62828)', color: 'white', border: 'none', padding: '15px', borderRadius: '10px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 12px rgba(229,57,53,0.3)', transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(229,57,53,0.4)' }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(229,57,53,0.3)' }}>
+              style={{ width: '100%', background: 'linear-gradient(135deg, #e53935, #c62828)', color: 'white', border: 'none', padding: '15px', borderRadius: '10px', fontSize: '16px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 12px rgba(229,57,53,0.3)', marginBottom: '8px' }}>
               Proceed to Checkout →
             </button>
-            <Link href="/collections/all">
-              <button style={{ width: '100%', background: 'white', color: '#666', border: '1px solid #e0e0e0', padding: '11px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }}>
+            <Link href="/collections/all" style={{ display: 'block' }}>
+              <button style={{ width: '100%', background: 'white', color: '#666', border: '1px solid #e0e0e0', padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
                 ← Continue Shopping
               </button>
             </Link>
 
-            {/* Security badges */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #f5f5f5' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f5f5f5' }}>
               {['🔒 Secure', '✅ Genuine', '↩️ Returns'].map(b => (
                 <span key={b} style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>{b}</span>
               ))}
