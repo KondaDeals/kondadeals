@@ -108,8 +108,12 @@ product_coupon_code: productForm.product_coupon_code || null,
 product_coupon_type: productForm.product_coupon_type || 'percentage',
 product_coupon_value: parseFloat(productForm.product_coupon_value) || 0,
 product_coupon_min_qty: parseInt(productForm.product_coupon_min_qty) || 1,
-product_coupon_start_date: productForm.product_coupon_start_date || null,
-product_coupon_end_date: productForm.product_coupon_end_date || null,
+product_coupon_start_date: productForm.product_coupon_start_date
+  ? new Date(productForm.product_coupon_start_date).toISOString()
+  : null,
+product_coupon_end_date: productForm.product_coupon_end_date
+  ? new Date(productForm.product_coupon_end_date).toISOString()
+  : null,
 product_coupon_active: productForm.product_coupon_active !== false, is_featured: productForm.is_featured, is_trending: productForm.is_trending, is_new_arrival: productForm.is_new_arrival, is_active: productForm.is_active }
     const { error } = editingProduct ? await supabase.from('products').update(data).eq('id', editingProduct.id) : await supabase.from('products').insert(data)
     if (error) { toast.error(error.message); return }

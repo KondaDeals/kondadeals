@@ -96,25 +96,27 @@ console.log('Expected code:', product?.product_coupon_code?.toUpperCase())
       return
     }
 
-    // Check dates — handle null, empty string, invalid dates safely
-const now = new Date()
-const startDate = product.product_coupon_start_date
-const endDate = product.product_coupon_end_date
+    // Check dates safely — handle timezone formats like +00:00
+const now = Date.now()
 
-if (startDate && startDate.trim && startDate.trim() !== '') {
-  const start = new Date(startDate)
-  if (!isNaN(start.getTime()) && start > now) {
-    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
-    return
-  }
+if (product.product_coupon_start_date) {
+  try {
+    const start = Date.parse(product.product_coupon_start_date)
+    if (!isNaN(start) && start > now) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
+      return
+    }
+  } catch (e) { /* ignore date parse errors */ }
 }
 
-if (endDate && endDate.trim && endDate.trim() !== '') {
-  const end = new Date(endDate)
-  if (!isNaN(end.getTime()) && end < now) {
-    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
-    return
-  }
+if (product.product_coupon_end_date) {
+  try {
+    const end = Date.parse(product.product_coupon_end_date)
+    if (!isNaN(end) && end < now) {
+      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
+      return
+    }
+  } catch (e) { /* ignore date parse errors */ }
 }
 
     // Check min qty
