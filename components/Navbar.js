@@ -173,7 +173,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Desktop Category Bar */}
           {/* All Products button */}
 <Link href="/collections/all" style={{ textDecoration: 'none' }}>
   <button style={{
