@@ -173,7 +173,7 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* All Products button */}
+   {/* All Products button */}
 <Link href="/collections/all" style={{ textDecoration: 'none' }}>
   <button style={{
     background: pathname === '/collections/all' || pathname === '/' ? '#e53935' : 'white',
