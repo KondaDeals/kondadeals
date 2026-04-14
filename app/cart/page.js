@@ -363,7 +363,7 @@ const anyItemHasCoupon = Object.values(productCouponData).some(
             <h3 style={{ fontSize: '17px', fontWeight: '800', marginBottom: '18px', color: '#1a1a1a' }}>Order Summary</h3>
 
             {/* Order-level coupon — hidden when product coupon active */}
-            {!anyItemHasCoupon ? (
+            {!hasProductCoupon ? (
               <div style={{ marginBottom: '18px', background: '#f8f8f8', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: '#555', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Tag size={13} /> Order Coupon
