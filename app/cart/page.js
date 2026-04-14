@@ -80,6 +80,12 @@ const anyItemHasCoupon = Object.values(productCouponData).some(
     // Use already-fetched coupon data
     const product = productCouponData[item.id]
 
+    // Debug log — remove after fixing
+console.log('Validating coupon for:', item.name)
+console.log('Product coupon data:', product)
+console.log('Entered code:', input.trim().toUpperCase())
+console.log('Expected code:', product?.product_coupon_code?.toUpperCase())
+
     if (!product?.product_coupon_enabled || !product?.product_coupon_active) {
       setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'No coupon available for this product' } }))
       return
@@ -90,16 +96,26 @@ const anyItemHasCoupon = Object.values(productCouponData).some(
       return
     }
 
-    // Check dates
-    const now = new Date()
-    if (product.product_coupon_start_date && new Date(product.product_coupon_start_date) > now) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
-      return
-    }
-    if (product.product_coupon_end_date && new Date(product.product_coupon_end_date) < now) {
-      setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
-      return
-    }
+    // Check dates — handle null, empty string, invalid dates safely
+const now = new Date()
+const startDate = product.product_coupon_start_date
+const endDate = product.product_coupon_end_date
+
+if (startDate && startDate.trim && startDate.trim() !== '') {
+  const start = new Date(startDate)
+  if (!isNaN(start.getTime()) && start > now) {
+    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon not active yet' } }))
+    return
+  }
+}
+
+if (endDate && endDate.trim && endDate.trim() !== '') {
+  const end = new Date(endDate)
+  if (!isNaN(end.getTime()) && end < now) {
+    setProductCoupons(prev => ({ ...prev, [item.id]: { ...prev[item.id], applying: false, error: 'Coupon has expired' } }))
+    return
+  }
+}
 
     // Check min qty
     if (item.quantity < (product.product_coupon_min_qty || 1)) {
