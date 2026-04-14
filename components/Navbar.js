@@ -74,7 +74,7 @@ useEffect(() => {
 
       {/* Top announcement bar */}
       <div style={{ background: '#e53935', color: 'white', textAlign: 'center', padding: '6px 12px', fontSize: '12px', fontWeight: '500' }}>
-        🚚 Free Delivery above ₹499 | Use code <strong>KONDA50</strong> for 50% OFF
+        🚚 Free Delivery above ₹499 | Use code <strong>LOVEKONDA</strong> for Up to 50% OFF
       </div>
 
       {/* Main Navbar */}
@@ -236,7 +236,7 @@ useEffect(() => {
           </div>
 
           <div style={{ background: '#fff3e0', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#e65100', fontWeight: '600', textAlign: 'center' }}>
-            🎉 Use code <strong>KONDA50</strong> for 50% OFF!
+            🎉 Use code <strong>LOVEKONDA</strong> for Up to 50% OFF!
           </div>
         </div>
       </nav>

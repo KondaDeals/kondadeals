@@ -393,7 +393,7 @@ export default function CartPage() {
                         {applyingOrder ? '...' : 'Apply'}
                       </button>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>Try: KONDA50, SAVE100</div>
+                    <div style={{ fontSize: '11px', color: '#999', marginTop: '5px' }}>Try: LOVEKONDA, SAVE100</div>
                   </div>
                 )}
               </div>
