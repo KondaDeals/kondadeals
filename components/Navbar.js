@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { ShoppingCart, Search, Menu, X, Heart, User } from 'lucide-react'
 import useStore from '@/lib/store'
 import { supabase } from '@/lib/supabase'
@@ -17,6 +17,7 @@ const Navbar = memo(function Navbar() {
   const { cart, user, setUser } = useStore()
   const router = useRouter()
 const { prefetchCategory } = usePrefetch()
+const pathname = usePathname()
 
 useEffect(() => {
   setMounted(true)
@@ -173,28 +174,61 @@ useEffect(() => {
           </div>
 
           {/* Desktop Category Bar */}
-          <div className="nav-cats" style={{ display: 'flex', gap: '4px', paddingBottom: '10px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-            <Link href="/collections/all" style={{ textDecoration: 'none' }}>
-              <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', background: '#e53935', color: 'white', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block' }}>
-                🔥 All Products
-              </span>
-            </Link>
-            {categories.map(cat => (
-              <Link
-    key={cat.id}
-    href={`/collections/${cat.slug}`}
-    style={{ textDecoration: 'none' }}
-   onMouseEnter={() => prefetchCategory(cat.slug)}
-  >
-                <span style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', background: '#f5f5f5', color: '#333', whiteSpace: 'nowrap', cursor: 'pointer', display: 'block', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.target.style.background = '#e53935'; e.target.style.color = 'white' }}
-                  onMouseLeave={e => { e.target.style.background = '#f5f5f5'; e.target.style.color = '#333' }}>
-                  {cat.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
+          {/* All Products button */}
+<Link href="/collections/all" style={{ textDecoration: 'none' }}>
+  <button style={{
+    background: pathname === '/collections/all' || pathname === '/' ? '#e53935' : 'white',
+    color: pathname === '/collections/all' || pathname === '/' ? 'white' : '#333',
+    border: `1.5px solid ${pathname === '/collections/all' || pathname === '/' ? '#e53935' : '#e0e0e0'}`,
+    padding: '8px 16px',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  }}>
+    🔥 All Products
+  </button>
+</Link>
+
+{/* Category buttons */}
+{categories.map(cat => {
+  const isActive = pathname === `/collections/${cat.slug}`
+  return (
+    <Link key={cat.id} href={`/collections/${cat.slug}`} style={{ textDecoration: 'none' }}>
+      <button style={{
+        background: isActive ? '#e53935' : 'white',
+        color: isActive ? 'white' : '#333',
+        border: `1.5px solid ${isActive ? '#e53935' : '#e0e0e0'}`,
+        padding: '8px 16px',
+        borderRadius: '20px',
+        fontSize: '13px',
+        fontWeight: '700',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={e => {
+        if (!isActive) {
+          e.currentTarget.style.borderColor = '#e53935'
+          e.currentTarget.style.color = '#e53935'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isActive) {
+          e.currentTarget.style.borderColor = '#e0e0e0'
+          e.currentTarget.style.color = '#333'
+        }
+      }}>
+        {cat.name}
+      </button>
+    </Link>
+  )
+})}
 
         {/* Mobile Menu Dropdown */}
         <div className="mobile-menu" style={{ flexDirection: 'column', background: 'white', borderTop: '1px solid #f0f0f0', padding: '16px' }}>
