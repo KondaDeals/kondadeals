@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import ImageUpload from '@/components/ImageUpload'
 import { Plus, X, Save, Edit, Trash2 } from 'lucide-react'
 import { formatINR } from '@/lib/currency'
+import { clearCache } from '@/lib/dataCache'
 
 const ADMIN_EMAILS = ['iamkondakirankumarreddy@gmail.com']
 
@@ -47,7 +48,7 @@ export default function AdminPage() {
   product_coupon_type:'percentage', product_coupon_value:'',
   product_coupon_min_qty:1, product_coupon_start_date:'',
   product_coupon_end_date:'', product_coupon_active:true,
-  is_featured:false, is_trending:false, is_new_arrival:false, is_active:true
+  is_featured:false, is_trending:false, is_new_arrival:true, is_active:true
 }
   const [productForm, setProductForm] = useState(emptyProduct)
   const [categoryForm, setCategoryForm] = useState({ name:'', slug:'', description:'', image_url:'', is_active:true })
@@ -118,6 +119,10 @@ product_coupon_active: productForm.product_coupon_active !== false, is_featured:
     const { error } = editingProduct ? await supabase.from('products').update(data).eq('id', editingProduct.id) : await supabase.from('products').insert(data)
     if (error) { toast.error(error.message); return }
     toast.success(editingProduct ? 'Updated!' : 'Added!')
+    // Clear cache so homepage updates immediately
+clearCache('homepage-all')
+clearCache(`products-all`)
+clearCache(`products-new-arrivals`)
     setShowProductModal(false); setEditingProduct(null); setProductForm(emptyProduct); fetchAll()
   }
 

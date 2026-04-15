@@ -107,9 +107,8 @@ const ProductSkeleton = () => (
 )
 
 export default function HomePage() {
-  const [featuredProducts, setFeaturedProducts] = useState([])
-  const [trendingProducts, setTrendingProducts] = useState([])
   const [newArrivals, setNewArrivals] = useState([])
+const [allProducts, setAllProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [heroBanners, setHeroBanners] = useState([])
   const [trustStrips, setTrustStrips] = useState([])
@@ -156,9 +155,8 @@ const fetchCriticalData = useCallback(async () => {
       })
     }
     setBannerLoaded(true)
-    if (data.featured?.length > 0) setFeaturedProducts(data.featured)
-    if (data.trending?.length > 0) setTrendingProducts(data.trending)
     if (data.newArrivals?.length > 0) setNewArrivals(data.newArrivals)
+if (data.allProducts?.length > 0) setAllProducts(data.allProducts)
     setLoading(false)
   } catch (err) {
     console.error(err)
@@ -335,67 +333,51 @@ const fetchFromSupabase = async () => {
           </div>
         </div>
 
-        {/* FEATURED PRODUCTS */}
-        <div style={{ padding: '28px 0 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Star size={20} color="#ff6f00" fill="#ff6f00" /> Featured Products
-              </h2>
-              <p style={{ fontSize: '12px', color: '#999', marginTop: '3px' }}>Hand-picked for you</p>
-            </div>
-            <Link href="/collections/all" style={{ textDecoration: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              View All <ChevronRight size={14} />
-            </Link>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px' }}>
-            {loading
-              ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
-              : featuredProducts.map(p => <LazyProductCard key={p.id} product={p} />)
-            }
-          </div>
-        </div>
+        {/* NEW ARRIVALS — First Section */}
+<div style={{ padding: '28px 0 0' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div>
+      <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+        🆕 New Arrivals
+      </h2>
+      <p style={{ fontSize: '12px', color: '#999', marginTop: '3px' }}>Latest products just added</p>
+    </div>
+    <Link href="/collections/new-arrivals" style={{ textDecoration: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      View All <ChevronRight size={14} />
+    </Link>
+  </div>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px' }}>
+    {loading
+      ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
+      : newArrivals.length > 0
+        ? newArrivals.map(p => <LazyProductCard key={p.id} product={p} />)
+        : [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
+    }
+  </div>
+</div>
 
-        {/* TRENDING */}
-        <div style={{ padding: '28px 0 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Zap size={20} color="#e53935" fill="#e53935" /> Trending Now
-              </h2>
-              <p style={{ fontSize: '12px', color: '#999', marginTop: '3px' }}>Most popular this week</p>
-            </div>
-            <Link href="/collections/viral-gadgets" style={{ textDecoration: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              View All <ChevronRight size={14} />
-            </Link>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px' }}>
-            {loading
-              ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
-              : trendingProducts.map(p => <LazyProductCard key={p.id} product={p} />)
-            }
-          </div>
-        </div>
-
-        {/* NEW ARRIVALS */}
-        {(loading || newArrivals.length > 0) && (
-          <div style={{ padding: '28px 0 0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TrendingUp size={20} color="#2e7d32" /> New Arrivals
-              </h2>
-              <Link href="/collections/new-arrivals" style={{ textDecoration: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                View All <ChevronRight size={14} />
-              </Link>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px' }}>
-              {loading
-                ? [...Array(4)].map((_, i) => <ProductSkeleton key={i} />)
-                : newArrivals.map(p => <LazyProductCard key={p.id} product={p} />)
-              }
-            </div>
-          </div>
-        )}
+{/* ALL PRODUCTS — Second Section */}
+<div style={{ padding: '28px 0 0' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div>
+      <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+        🛍️ All Products
+      </h2>
+      <p style={{ fontSize: '12px', color: '#999', marginTop: '3px' }}>Everything in our store</p>
+    </div>
+    <Link href="/collections/all" style={{ textDecoration: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      View All <ChevronRight size={14} />
+    </Link>
+  </div>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px' }}>
+    {loading
+      ? [...Array(8)].map((_, i) => <ProductSkeleton key={i} />)
+      : allProducts.length > 0
+        ? allProducts.map(p => <LazyProductCard key={p.id} product={p} />)
+        : newArrivals.map(p => <LazyProductCard key={p.id} product={p} />)
+    }
+  </div>
+</div>
 
         {/* BOTTOM PROMO BANNERS */}
         <div style={{ padding: '28px 0' }}>
