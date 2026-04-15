@@ -16,30 +16,28 @@ const Navbar = memo(function Navbar() {
   const [mounted, setMounted] = useState(false)
   const { cart, user, setUser } = useStore()
   const router = useRouter()
-const { prefetchCategory } = usePrefetch()
-const pathname = usePathname()
+  const { prefetchCategory } = usePrefetch()
+  const pathname = usePathname()
 
-useEffect(() => {
-  setMounted(true)
-  const handleScroll = () => setScrolled(window.scrollY > 10)
-  window.addEventListener('scroll', handleScroll)
+  useEffect(() => {
+    setMounted(true)
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll)
 
-  // Get initial session
-  supabase.auth.getSession().then(({ data }) => {
-    setUser(data.session?.user || null)
-  })
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user || null)
+    })
 
-  // Listen for auth changes
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user || null)
-  })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
 
-  fetchCategories()
-  return () => {
-    window.removeEventListener('scroll', handleScroll)
-    subscription.unsubscribe()
-  }
-}, [])
+    fetchCategories()
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const cartCount = mounted ? cart.reduce((t, i) => t + i.quantity, 0) : 0
 
@@ -85,17 +83,18 @@ useEffect(() => {
         position: 'sticky', top: 0, zIndex: 1000, transition: 'box-shadow 0.3s'
       }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 16px' }}>
+
           {/* Top Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px' }}>
 
             {/* Logo */}
-          <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-  <img
-    src="/logo.png"
-    alt="KondaDeals"
-    style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
-  />
-</Link>
+            <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <img
+                src="/logo.png"
+                alt="KondaDeals"
+                style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
+              />
+            </Link>
 
             {/* Desktop Search */}
             <form onSubmit={handleSearch} className="nav-search" style={{ flex: 1, display: 'flex', maxWidth: '560px' }}>
@@ -113,32 +112,32 @@ useEffect(() => {
             {/* Desktop Actions */}
             <div className="nav-desktop-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
               <Link href="/track" style={{ textDecoration: 'none' }}>
-  <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M12 5l7 7-7 7"/>
-    </svg>
-    <span style={{ fontSize: '11px', color: '#555' }}>Track</span>
-  </button>
-</Link>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                  <span style={{ fontSize: '11px', color: '#555' }}>Track</span>
+                </button>
+              </Link>
               <Link href="/wishlist" style={{ textDecoration: 'none' }}>
                 <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                   <Heart size={22} color="#555" />
                   <span style={{ fontSize: '11px', color: '#555' }}>Wishlist</span>
                 </button>
               </Link>
-             <Link href={user ? '/account' : '/login'} style={{ textDecoration: 'none' }}>
-  <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-    <User size={22} color="#555" />
-    <span style={{ fontSize: '11px', color: '#555' }}>{user ? 'Account' : 'Login'}</span>
-  </button>
-</Link>
-{user && (
-  <button
-    onClick={() => router.push('/admin')}
-    style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-    <span style={{ fontSize: '12px', color: 'white', fontWeight: '700' }}>⚙️ Admin</span>
-  </button>
-)}
+              <Link href={user ? '/account' : '/login'} style={{ textDecoration: 'none' }}>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <User size={22} color="#555" />
+                  <span style={{ fontSize: '11px', color: '#555' }}>{user ? 'Account' : 'Login'}</span>
+                </button>
+              </Link>
+              {user && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '6px 14px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', color: 'white', fontWeight: '700' }}>⚙️ Admin</span>
+                </button>
+              )}
               <Link href="/cart" style={{ textDecoration: 'none' }}>
                 <button style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
                   <ShoppingCart size={20} color="white" />
@@ -154,7 +153,6 @@ useEffect(() => {
 
             {/* Mobile Right Side */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-              {/* Mobile Cart */}
               <Link href="/cart" style={{ textDecoration: 'none' }} className="nav-mobile-btn">
                 <button style={{ background: '#e53935', border: 'none', cursor: 'pointer', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }}>
                   <ShoppingCart size={18} color="white" />
@@ -165,115 +163,121 @@ useEffect(() => {
                   )}
                 </button>
               </Link>
-              {/* Hamburger */}
               <button className="nav-mobile-btn" onClick={() => setMenuOpen(!menuOpen)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px' }}>
                 {menuOpen ? <X size={24} color="#333" /> : <Menu size={24} color="#333" />}
               </button>
             </div>
-          </div>
+          </div>{/* ← END of Top Row div */}
 
-   {/* All Products button */}
-<Link href="/collections/all" style={{ textDecoration: 'none' }}>
-  <button style={{
-    background: pathname === '/collections/all' || pathname === '/' ? '#e53935' : 'white',
-    color: pathname === '/collections/all' || pathname === '/' ? 'white' : '#333',
-    border: `1.5px solid ${pathname === '/collections/all' || pathname === '/' ? '#e53935' : '#e0e0e0'}`,
-    padding: '8px 16px',
-    borderRadius: '20px',
-    fontSize: '13px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  }}>
-    🔥 All Products
-  </button>
-</Link>
+          {/* Category Row */}
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
 
-{/* Category buttons */}
-{categories.map(cat => {
-  const isActive = pathname === `/collections/${cat.slug}`
-  return (
-    <Link key={cat.id} href={`/collections/${cat.slug}`} style={{ textDecoration: 'none' }}>
-      <button style={{
-        background: isActive ? '#e53935' : 'white',
-        color: isActive ? 'white' : '#333',
-        border: `1.5px solid ${isActive ? '#e53935' : '#e0e0e0'}`,
-        padding: '8px 16px',
-        borderRadius: '20px',
-        fontSize: '13px',
-        fontWeight: '700',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        transition: 'all 0.2s',
-      }}
-      onMouseEnter={e => {
-        if (!isActive) {
-          e.currentTarget.style.borderColor = '#e53935'
-          e.currentTarget.style.color = '#e53935'
-        }
-      }}
-      onMouseLeave={e => {
-        if (!isActive) {
-          e.currentTarget.style.borderColor = '#e0e0e0'
-          e.currentTarget.style.color = '#333'
-        }
-      }}>
-        {cat.name}
-      </button>
-    </Link>
-  )
-})}
-
-        {/* Mobile Menu Dropdown */}
-        <div className="mobile-menu" style={{ flexDirection: 'column', background: 'white', borderTop: '1px solid #f0f0f0', padding: '16px' }}>
-          {/* Mobile Search */}
-          <form onSubmit={handleSearch} style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', border: '2px solid #e53935', borderRadius: '8px', overflow: 'hidden' }}>
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                style={{ flex: 1, padding: '10px 14px', border: 'none', outline: 'none', fontSize: '14px' }}
-              />
-              <button type="submit" style={{ background: '#e53935', border: 'none', padding: '0 16px', cursor: 'pointer' }}>
-                <Search size={16} color="white" />
+            {/* All Products button */}
+            <Link href="/collections/all" style={{ textDecoration: 'none' }}>
+              <button style={{
+                background: pathname === '/collections/all' || pathname === '/' ? '#e53935' : 'white',
+                color: pathname === '/collections/all' || pathname === '/' ? 'white' : '#333',
+                border: `1.5px solid ${pathname === '/collections/all' || pathname === '/' ? '#e53935' : '#e0e0e0'}`,
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                🔥 All Products
               </button>
+            </Link>
+
+            {/* Category buttons */}
+            {categories.map(cat => {
+              const isActive = pathname === `/collections/${cat.slug}`
+              return (
+                <Link key={cat.id} href={`/collections/${cat.slug}`} style={{ textDecoration: 'none' }}>
+                  <button style={{
+                    background: isActive ? '#e53935' : 'white',
+                    color: isActive ? 'white' : '#333',
+                    border: `1.5px solid ${isActive ? '#e53935' : '#e0e0e0'}`,
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.borderColor = '#e53935'
+                      e.currentTarget.style.color = '#e53935'
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.borderColor = '#e0e0e0'
+                      e.currentTarget.style.color = '#333'
+                    }
+                  }}>
+                    {cat.name}
+                  </button>
+                </Link>
+              )
+            })}
+          </div>{/* ← END of Category Row div */}
+
+          {/* Mobile Menu Dropdown */}
+          <div className="mobile-menu" style={{ flexDirection: 'column', background: 'white', borderTop: '1px solid #f0f0f0', padding: '16px' }}>
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch} style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', border: '2px solid #e53935', borderRadius: '8px', overflow: 'hidden' }}>
+                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search products..."
+                  style={{ flex: 1, padding: '10px 14px', border: 'none', outline: 'none', fontSize: '14px' }}
+                />
+                <button type="submit" style={{ background: '#e53935', border: 'none', padding: '0 16px', cursor: 'pointer' }}>
+                  <Search size={16} color="white" />
+                </button>
+              </div>
+            </form>
+
+            {/* Mobile Nav Links */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
+              {[
+                { href: '/', label: '🏠 Home' },
+                { href: '/track', label: '📦 Track Order' },
+                { href: '/collections/all', label: '🛍️ All Products' },
+                { href: '/collections/viral-gadgets', label: '⚡ Viral Gadgets' },
+                { href: '/collections/home-decor', label: '🏠 Home Decor' },
+                { href: '/collections/kitchen-tools', label: '🍳 Kitchen Tools' },
+                { href: '/collections/tech-accessories', label: '📱 Tech Accessories' },
+                { href: '/collections/beauty-care', label: '💄 Beauty & Care' },
+                { href: '/wishlist', label: '❤️ Wishlist' },
+                { href: user ? '/account' : '/login', label: user ? '👤 My Account' : '🔑 Login / Sign Up' },
+              ].map(link => (
+                <Link key={link.href} href={link.href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                  <div style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '15px', fontWeight: '500', color: '#333', background: '#f8f8f8', transition: 'all 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#f8f8f8'}>
+                    {link.label}
+                  </div>
+                </Link>
+              ))}
             </div>
-          </form>
 
-          {/* Mobile Nav Links */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
-            {[
-              { href: '/', label: '🏠 Home' },
-              { href: '/track', label: '📦 Track Order' },
-              { href: '/collections/all', label: '🛍️ All Products' },
-              { href: '/collections/viral-gadgets', label: '⚡ Viral Gadgets' },
-              { href: '/collections/home-decor', label: '🏠 Home Decor' },
-              { href: '/collections/kitchen-tools', label: '🍳 Kitchen Tools' },
-              { href: '/collections/tech-accessories', label: '📱 Tech Accessories' },
-              { href: '/collections/beauty-care', label: '💄 Beauty & Care' },
-              { href: '/wishlist', label: '❤️ Wishlist' },
-              { href: user ? '/account' : '/login', label: user ? '👤 My Account' : '🔑 Login / Sign Up' },
-            ].map(link => (
-              <Link key={link.href} href={link.href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
-                <div style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '15px', fontWeight: '500', color: '#333', background: '#f8f8f8', transition: 'all 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#f8f8f8'}>
-                  {link.label}
-                </div>
-              </Link>
-            ))}
-          </div>
+            <div style={{ background: '#fff3e0', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#e65100', fontWeight: '600', textAlign: 'center' }}>
+              🎉 Use code <strong>LOVEKONDA</strong> for Up to 50% OFF!
+            </div>
+          </div>{/* ← END of Mobile Menu div */}
 
-          <div style={{ background: '#fff3e0', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#e65100', fontWeight: '600', textAlign: 'center' }}>
-            🎉 Use code <strong>LOVEKONDA</strong> for Up to 50% OFF!
-          </div>
-        </div>
+        </div>{/* ← END of maxWidth container div */}
       </nav>
     </>
   )
 })
+
 export default Navbar
